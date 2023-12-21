@@ -1,4 +1,12 @@
 package com.example.android_beacon_scanner.ui.theme
 
-class Typography {
-}
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
+
+val ScanItemTypography = Typography(
+    bodySmall = TextStyle(
+        fontSize = 12.sp,
+        letterSpacing = 0.5.sp
+    )
+)

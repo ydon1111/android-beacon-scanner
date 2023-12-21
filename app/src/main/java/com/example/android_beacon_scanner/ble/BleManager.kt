@@ -1,8 +1,10 @@
-package com.example.android_beacon_scanner.ble
+package com.example.android_beacon_scanner
 
+import DeviceDataRepository
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
@@ -14,40 +16,43 @@ import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import com.example.android_beacon_scanner.BleInterface
-import com.example.android_beacon_scanner.DeviceData
+import com.example.android_beacon_scanner.room.DeviceRoomData
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class BleManger @Inject constructor(
-    private val context: Context
-) {
-    private val bluetoothManager =
-        context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+class BleManager @Inject constructor(
+    private val context: Context,
+    private val deviceDataRepository: DeviceDataRepository
+){
+    private val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter = bluetoothManager.adapter
     private val bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
     private var scanList: SnapshotStateList<DeviceData>? = null
     private var connectedStateObserver: BleInterface? = null
     var bleGatt: BluetoothGatt? = null
 
+
     private val scanCallback: ScanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             Log.d("onScanResult", result.toString())
-            if (result.device.name != null) {
+            if(result.device.name != null) {
                 var uuid = "null"
-                if (result.scanRecord?.serviceUuids != null) {
+
+                if(result.scanRecord?.serviceUuids != null) {
                     uuid = result.scanRecord!!.serviceUuids.toString()
                 }
+
                 val scanItem = DeviceData(
-                    result.device.name ?: "null",
+                    result.device.name?: "null",
                     uuid,
-                    result.device.address ?: "null"
+                    result.device.address?: "null"
                 )
-                if (!scanList!!.contains(scanItem)) {
+
+                if(!scanList!!.contains(scanItem)) {
                     scanList!!.add(scanItem)
                 }
             }
@@ -59,12 +64,16 @@ class BleManger @Inject constructor(
     }
 
     private val gattCallback = object : BluetoothGattCallback() {
+
+        // GATT의 연결 상태 변경을 감지하는 콜백
         @SuppressLint("MissingPermission")
         override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
             super.onConnectionStateChange(gatt, status, newState)
 
+            // 연결이 성공적으로 이루어진 경우
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                Log.d("BleManger", "연결 성공")
+                // GATT 서버에서 사용 가능한 서비스들을 비동기적으로 탐색
+                Log.d("BleManager", "연결 성공")
                 gatt?.discoverServices()
                 connectedStateObserver?.onConnectedStateObserve(
                     true,
@@ -73,7 +82,8 @@ class BleManger @Inject constructor(
                             + "---"
                 )
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                Log.d("BleManger", "연결 해제")
+                // 연결 끊김
+                Log.d("BleManager", "연결 해제")
                 connectedStateObserver?.onConnectedStateObserve(
                     false,
                     "onConnectionStateChange:  STATE_DISCONNECTED"
@@ -82,23 +92,22 @@ class BleManger @Inject constructor(
                 )
             }
         }
+
         // 장치에 대한 새로운 서비스가 발견되었을 때 호출되는 콜백
         @SuppressLint("MissingPermission")
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             super.onServicesDiscovered(gatt, status)
 
             // 원격 장치가 성공적으로 탐색된 경우
-            if (status == BluetoothGatt.GATT_SUCCESS) {
+            if(status == BluetoothGatt.GATT_SUCCESS) {
                 MainScope().launch {
                     bleGatt = gatt
-                    Toast.makeText(context, " ${gatt?.device?.name} 연결 성공", Toast.LENGTH_SHORT)
-                        .show()
-                    var sendText =
-                        "onServicesDiscovered:  GATT_SUCCESS" + "\n" + "                         ↓" + "\n"
+                    Toast.makeText(context, " ${gatt?.device?.name} 연결 성공", Toast.LENGTH_SHORT).show()
+                    var sendText = "onServicesDiscovered:  GATT_SUCCESS" + "\n" + "                         ↓" + "\n"
 
-                    for (service in gatt?.services!!) {
+                    for(service in gatt?.services!!) {
                         sendText += "- " + service.uuid.toString() + "\n"
-                        for (characteristics in service.characteristics) {
+                        for(characteristics in service.characteristics) {
                             sendText += "       " + characteristics.uuid.toString() + "\n"
                         }
                     }
@@ -108,6 +117,34 @@ class BleManger @Inject constructor(
                         sendText
                     )
                 }.cancel()
+            }
+        }
+
+        @SuppressLint("MissingPermission")
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt?,
+            characteristic: BluetoothGattCharacteristic?,
+            status: Int
+        ) {
+            super.onCharacteristicRead(gatt, characteristic, status)
+
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                // 데이터를 Room 데이터베이스에 저장
+                val manufacturerData = characteristic?.value
+                val serviceUuid = characteristic?.uuid.toString()
+
+                if (manufacturerData != null) {
+                    val deviceData = DeviceRoomData(
+                        deviceName = gatt?.device?.name ?: "null",
+                        serviceUuid = serviceUuid.toString(),
+                        deviceAddress = gatt?.device?.address ?: "null",
+                        manufacturerData = manufacturerData
+                    )
+
+                    MainScope().launch {
+                        deviceDataRepository.insertDeviceData(deviceData)
+                    }
+                }
             }
         }
     }
@@ -152,7 +189,4 @@ class BleManger @Inject constructor(
     fun onConnectedStateObserve(pConnectedStateObserver: BleInterface) {
         connectedStateObserver = pConnectedStateObserver
     }
-
-
-
 }
