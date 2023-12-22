@@ -1,6 +1,5 @@
 package com.example.android_beacon_scanner
 
-import DeviceDataRepository
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
@@ -16,6 +15,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomData
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch

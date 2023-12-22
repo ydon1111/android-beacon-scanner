@@ -1,3 +1,4 @@
+package com.example.android_beacon_scanner.room
 
 import androidx.lifecycle.LiveData
 import com.example.android_beacon_scanner.room.DeviceDataDao

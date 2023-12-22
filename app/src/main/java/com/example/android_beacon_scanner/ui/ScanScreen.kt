@@ -68,6 +68,7 @@ fun ScanScreen(navController: NavHostController, bleManager: BleManager) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 @SuppressLint("MissingPermission")
 fun ScanButton(
@@ -111,6 +112,7 @@ fun ScanButton(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ScanList(
     navController: NavHostController,
