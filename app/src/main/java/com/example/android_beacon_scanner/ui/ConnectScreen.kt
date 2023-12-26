@@ -39,13 +39,14 @@ import androidx.navigation.NavController
 import com.example.android_beacon_scanner.BleInterface
 import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.DeviceData
+import com.example.android_beacon_scanner.room.DeviceRoomData
 
 
 @RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("MissingPermission")
 @Composable
 fun ConnectScreen(navController: NavController, bleManager: BleManager) {
-    val deviceData = navController.previousBackStackEntry?.savedStateHandle?.get<DeviceData>("deviceData")
+    val deviceData = navController.previousBackStackEntry?.savedStateHandle?.get<DeviceRoomData>("deviceData")
     val isConnecting = remember { mutableStateOf(false) }
     val connectedData = remember { mutableStateOf("") }
 
@@ -73,7 +74,7 @@ fun ConnectScreen(navController: NavController, bleManager: BleManager) {
             }
             Text(
                 modifier = Modifier.align(Alignment.CenterVertically),
-                text = deviceData?.name ?: "Null",
+                text = deviceData?.deviceName ?: "Null",
                 style = TextStyle(
                     fontSize = 25.sp,
                     fontWeight = FontWeight.SemiBold
@@ -93,7 +94,7 @@ fun ConnectScreen(navController: NavController, bleManager: BleManager) {
         }
 
         ConnectButton(bleManager, isConnecting, deviceData)
-
+        ManufacturerDataView(connectedData)
         val scroll = rememberScrollState(0)
         Text(
             modifier = Modifier
@@ -151,8 +152,9 @@ fun InfoDialog(onChangeState: ()-> Unit) {
 fun ConnectButton(
     bleManager: BleManager,
     isConnecting: MutableState<Boolean>,
-    deviceData: DeviceData?
+    deviceData: DeviceRoomData?
 ) {
+    val manufacturerData = byteArrayOf(2, 28, -63, -6, 15, -2, 0, 0, 0, 0, 0, 0, 0, -10, -62, 14, 16, 120, 0, 0, 0, 0, 0, 0, 0, 76, -62, 122, 16, -34, 0, 0, 0, 0, 0, 0, 0, -54, -62, -118, 16, 70, 0, 0, 0, 0, 0, 0, -1, -22, -62, -114, 15, 82, 0, 0, 0, 0, 0, 0, 0, 12, -61, -110, 16, -90, 0, 0, 0, 0, 0, 0, 0, -36, -62, 84, 14, -122, 0, 0, 0, 0, 0, 0, 0, -36, -63, -128, 13, -16, 0, 0, 0, 0, 0, 0, 0, -122, -63, -120, 14, -98, 0, 0, 0, 0, 0, 0, 0, -104, -62, 40, 15, 12, 0, 0, 0, 0, 0, 0, 0, 74, -62, 86, 14, -126, 0, 0, 0, 0, 0, 0, -2, 124, -62, 108, 18, -84, 0, 0, 0, 0, 0, 0, -3, 78, -58, 36, 24, 72, 0, 0, 0, 0, 0, 0, -6, 56, -58, -28, 30, -42, 0, 0, 0, 0, 0, 0, -9, -48, -54, -30, 37, -22, 0, 0, 0, 0, 0, 0, -8, 80, -47, -94, 41, 66, 0, 0, 0, 0, 0, 0, -28, -108, -57, 120, 19, 86, 0, 0, 0, 0, 0, 0, -30, -44, -56, 32, 8, 14, 0, 0, 0, 0, 0, 0, 32, 1)
     Row(
         Modifier
             .fillMaxWidth()
@@ -166,7 +168,7 @@ fun ConnectButton(
             colors = ButtonDefaults.buttonColors(Color(0xFF1D8821)),
             enabled = !isConnecting.value,
             onClick = {
-                bleManager.startBleConnectGatt(deviceData?: DeviceData("", "", ""))
+                bleManager.startBleConnectGatt(deviceData?: DeviceRoomData(0, "", "","",manufacturerData))
             }
         ) {
             Text(text = "Connect")
@@ -183,6 +185,22 @@ fun ConnectButton(
             Text(text = "Disconnect")
         }
     }
+}
+
+
+@RequiresApi(Build.VERSION_CODES.O)
+@SuppressLint("MissingPermission")
+@Composable
+fun ManufacturerDataView(connectedData: MutableState<String>) {
+    Text(
+        modifier = Modifier
+            .padding(top = 5.dp)
+            .verticalScroll(rememberScrollState()),
+        text = connectedData.value,
+        style = TextStyle(
+            fontSize = 14.sp,
+        )
+    )
 }
 
 

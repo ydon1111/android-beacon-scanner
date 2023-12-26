@@ -1,5 +1,6 @@
 package com.example.android_beacon_scanner.room
 
+import android.util.SparseArray
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -10,5 +11,5 @@ data class DeviceRoomData(
     val deviceName: String,
     val serviceUuid: String,
     val deviceAddress: String,
-    val manufacturerData: ByteArray // 여기서 바이트 배열로 manufacturerData를 저장합니다.
+    val manufacturerData: ByteArray?
 )

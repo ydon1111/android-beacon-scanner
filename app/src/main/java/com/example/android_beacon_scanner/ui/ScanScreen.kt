@@ -49,13 +49,14 @@ import androidx.navigation.NavHostController
 import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.DeviceData
 import com.example.android_beacon_scanner.R
+import com.example.android_beacon_scanner.room.DeviceRoomData
 import com.example.android_beacon_scanner.ui.theme.ScanItemTypography
 
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ScanScreen(navController: NavHostController, bleManager: BleManager) {
-    val scanList = remember { mutableStateListOf<DeviceData>() }
+    val scanList = remember { mutableStateListOf<DeviceRoomData>() }
     val isScanning = remember { mutableStateOf(false) }
     val context = LocalContext.current
     bleManager.setScanList(scanList)
@@ -117,7 +118,7 @@ fun ScanButton(
 fun ScanList(
     navController: NavHostController,
     bleManager: BleManager,
-    scanList: SnapshotStateList<DeviceData>
+    scanList: SnapshotStateList<DeviceRoomData>
 ) {
     LazyColumn(
         modifier = Modifier
@@ -137,7 +138,7 @@ fun ScanList(
 fun ScanItem(
     navController: NavHostController,
     bleManager: BleManager,
-    deviceData: DeviceData,
+    deviceData: DeviceRoomData,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -159,13 +160,15 @@ fun ScanItem(
             .padding(start = 2.dp)
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = deviceData.name)
+                Text(text = deviceData.deviceName)
 
                 if(expanded) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "UUID\n>> ${deviceData.uuid}", style = ScanItemTypography.bodySmall)
+                    Text(text = "UUID\n>> ${deviceData.serviceUuid}", style = ScanItemTypography.bodySmall)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "Address\n>> ${deviceData.address}", style = ScanItemTypography.bodySmall)
+                    Text(text = "Address\n>> ${deviceData.deviceAddress}", style = ScanItemTypography.bodySmall)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = "data\n>> ${deviceData.manufacturerData}", style = ScanItemTypography.bodySmall)
                 }
             }
 
@@ -219,5 +222,3 @@ private val permissionArray = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
         Manifest.permission.ACCESS_FINE_LOCATION
     )
 }
-
-
