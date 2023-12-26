@@ -178,3 +178,32 @@ class BleManager @Inject constructor(
         connectedStateObserver = pConnectedStateObserver
     }
 }
+
+
+//// Sample data extraction and conversion
+//val numDataPoints = 18 // The number of data points to extract
+//
+//val ACC_X = mutableListOf<Int>()
+//val ACC_Y = mutableListOf<Int>()
+//val ACC_Z = mutableListOf<Int>()
+//val Gyro_X = mutableListOf<Int>()
+//val Gyro_Y = mutableListOf<Int>()
+//val Gyro_Z = mutableListOf<Int>()
+//
+//for (i in 0 until numDataPoints) {
+//    val startIndex = 2 + 12 * i // Adjust this index based on your data format
+//
+//    val accX = ByteBuffer.wrap(manufacturerSpecificDataBytes, startIndex, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+//    val accY = ByteBuffer.wrap(manufacturerSpecificDataBytes, startIndex + 2, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+//    val accZ = ByteBuffer.wrap(manufacturerSpecificDataBytes, startIndex + 4, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+//    val gyroX = ByteBuffer.wrap(manufacturerSpecificDataBytes, startIndex + 6, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+//    val gyroY = ByteBuffer.wrap(manufacturerSpecificDataBytes, startIndex + 8, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+//    val gyroZ = ByteBuffer.wrap(manufacturerSpecificDataBytes, startIndex + 10, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+//
+//    ACC_X.add(accX)
+//    ACC_Y.add(accY)
+//    ACC_Z.add(accZ)
+//    Gyro_X.add(gyroX)
+//    Gyro_Y.add(gyroY)
+//    Gyro_Z.add(gyroZ)
+//}
