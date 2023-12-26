@@ -15,13 +15,13 @@ import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.core.util.containsKey
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomData
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
-
 @Singleton
 class BleManager @Inject constructor(
     private val context: Context,
@@ -35,29 +35,32 @@ class BleManager @Inject constructor(
     var bleGatt: BluetoothGatt? = null
 
 
+
+    //FD:A3:D4:BE:09:60, C1:7A:35:49:D7:67, DE:FD:1E:16:73:0D
     private val scanCallback: ScanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
-            Log.d("onScanResult", result.toString())
-            if(result.device.name != null) {
-                var uuid = "null"
 
-                if(result.scanRecord?.serviceUuids != null) {
-                    uuid = result.scanRecord!!.serviceUuids.toString()
-                }
+            // Check if the device name contains "M" (uppercase "M")
+            val deviceName = result.device.name
+            if (deviceName != null && deviceName.contains("M")) {
+                // "mManufacturerSpecificData" 맵에서 16505가 포함되었는지 확인
+                val manufacturerData = result.scanRecord?.manufacturerSpecificData
+                if (manufacturerData != null && manufacturerData.containsKey(16505)) {
+                    Log.d("onScanResult", result.toString())
 
-                val scanItem = DeviceData(
-                    result.device.name?: "null",
-                    uuid,
-                    result.device.address?: "null"
-                )
-
-                if(!scanList!!.contains(scanItem)) {
-                    scanList!!.add(scanItem)
+                    val uuid = result.scanRecord?.serviceUuids?.toString() ?: "null"
+                    val scanItem = DeviceData(
+                        deviceName,
+                        uuid,
+                        result.device.address ?: "null"
+                    )
+                    if (!scanList!!.contains(scanItem)) {
+                        scanList!!.add(scanItem)
+                    }
                 }
             }
         }
-
         override fun onScanFailed(errorCode: Int) {
             println("onScanFailed  $errorCode")
         }
@@ -120,6 +123,7 @@ class BleManager @Inject constructor(
             }
         }
 
+        @Deprecated("Deprecated in Java")
         @SuppressLint("MissingPermission")
         override fun onCharacteristicRead(
             gatt: BluetoothGatt?,
@@ -140,7 +144,6 @@ class BleManager @Inject constructor(
                         deviceAddress = gatt?.device?.address ?: "null",
                         manufacturerData = manufacturerData
                     )
-
                     MainScope().launch {
                         deviceDataRepository.insertDeviceData(deviceData)
                     }
@@ -166,7 +169,6 @@ class BleManager @Inject constructor(
             .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
             .setLegacy(false) // 이 부분이 ble 5.0 ext adv 를 스캔 가능하게함
             .build()
-
         bluetoothLeScanner.startScan(null, scanSettings, scanCallback)
     }
 
