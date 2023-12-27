@@ -22,11 +22,12 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+
 @Singleton
 class BleManager @Inject constructor(
     private val context: Context,
     private val deviceDataRepository: DeviceDataRepository
-){
+) {
     private val bluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter = bluetoothManager.adapter
@@ -35,6 +36,7 @@ class BleManager @Inject constructor(
     private var connectedStateObserver: BleInterface? = null
     var bleGatt: BluetoothGatt? = null
 
+
     private val scanCallback: ScanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -42,6 +44,7 @@ class BleManager @Inject constructor(
             if (deviceName != null && deviceName.contains("M")) {
                 val manufacturerData = result.scanRecord?.manufacturerSpecificData
                 if (manufacturerData != null && manufacturerData.containsKey(16505)) {
+
                     Log.d("onScanResult", result.toString())
 
                     val uuid = result.scanRecord?.serviceUuids?.toString() ?: "null"
@@ -119,6 +122,10 @@ class BleManager @Inject constructor(
             }
         }
 
+        private suspend fun isDeviceDataExists(deviceAddress: String): Boolean {
+            return deviceDataRepository.isDeviceDataExists(deviceAddress)
+        }
+
         @SuppressLint("MissingPermission")
         override fun onCharacteristicRead(
             gatt: BluetoothGatt?,
@@ -132,18 +139,24 @@ class BleManager @Inject constructor(
                 val serviceUuid = characteristic?.uuid.toString()
 
                 if (manufacturerData != null) {
-                    val deviceData = DeviceRoomData(
-                        deviceName = gatt?.device?.name ?: "null",
-                        serviceUuid = serviceUuid,
-                        deviceAddress = gatt?.device?.address ?: "null",
-                        manufacturerData = manufacturerData
-                    )
-                    MainScope().launch {
-                        deviceDataRepository.insertDeviceData(deviceData)
-                    }
+                    val deviceName = gatt?.device?.name ?: "null"
+                    val deviceAddress = gatt?.device?.address ?: "null"
+
+                        // Insert the data into the Room database
+                        val deviceData = DeviceRoomData(
+                            deviceName = deviceName,
+                            serviceUuid = serviceUuid,
+                            deviceAddress = deviceAddress,
+                            manufacturerData = manufacturerData
+                        )
+                        MainScope().launch {
+                            deviceDataRepository.insertDeviceData(deviceData)
+                        }
+
                 }
             }
         }
+
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -177,6 +190,10 @@ class BleManager @Inject constructor(
     fun onConnectedStateObserve(pConnectedStateObserver: BleInterface) {
         connectedStateObserver = pConnectedStateObserver
     }
+
+
+
+
 }
 
 

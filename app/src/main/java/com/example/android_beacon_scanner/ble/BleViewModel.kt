@@ -1,11 +1,13 @@
 package com.example.android_beacon_scanner.ble
 
 
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomData
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -18,4 +20,6 @@ class BleViewModel @Inject constructor(private val deviceDataRepository: DeviceD
             deviceDataRepository.insertDeviceData(deviceData)
         }
     }
+
+    val deviceDataList: LiveData<List<DeviceRoomData>> = deviceDataRepository.allDeviceRoomData
 }

@@ -23,7 +23,7 @@ object DatabaseModule {
     fun provideAppDatabase(applicationContext: Context): AppDatabase {
         return Room.databaseBuilder(
             applicationContext,
-            AppDatabase::class.java, "app-database"
+            AppDatabase::class.java, "device_data"
         ).build()
     }
 

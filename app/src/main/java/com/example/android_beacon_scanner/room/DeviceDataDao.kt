@@ -13,4 +13,7 @@ interface DeviceDataDao {
 
     @Query("SELECT * FROM device_data")
     fun getAllDeviceData(): LiveData<List<DeviceRoomData>>
+
+    @Query("SELECT EXISTS (SELECT 1 FROM device_data WHERE deviceAddress = :deviceAddress)")
+    suspend fun isDeviceDataExists(deviceAddress: String): Boolean
 }

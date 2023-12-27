@@ -11,4 +11,8 @@ class DeviceDataRepository @Inject constructor(private val deviceDataDao: Device
     suspend fun insertDeviceData(deviceRoomData: DeviceRoomData) {
         deviceDataDao.insertDeviceData(deviceRoomData)
     }
+
+    suspend fun isDeviceDataExists(deviceAddress: String): Boolean {
+        return deviceDataDao.isDeviceDataExists(deviceAddress)
+    }
 }

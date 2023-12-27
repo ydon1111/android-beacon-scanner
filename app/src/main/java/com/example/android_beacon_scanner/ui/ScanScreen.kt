@@ -1,7 +1,5 @@
 package com.example.android_beacon_scanner.ui
 
-
-
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -47,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
 import com.example.android_beacon_scanner.BleManager
-import com.example.android_beacon_scanner.DeviceData
 import com.example.android_beacon_scanner.R
 import com.example.android_beacon_scanner.room.DeviceRoomData
 import com.example.android_beacon_scanner.ui.theme.ScanItemTypography
@@ -120,12 +117,14 @@ fun ScanList(
     bleManager: BleManager,
     scanList: SnapshotStateList<DeviceRoomData>
 ) {
+
+    val uniqueDeviceNames = scanList.distinctBy { it.deviceName }
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
     ) {
-        items(scanList) { topic->
+        items(uniqueDeviceNames) { topic->
             ScanItem(navController, bleManager, topic)
         }
     }
@@ -148,10 +147,9 @@ fun ScanItem(
         ),
         modifier = Modifier.padding(vertical = 4.dp),
         onClick = {
-            bleManager.stopBleScan()
+//            bleManager.stopBleScan()
             navController.currentBackStackEntry?.savedStateHandle?.set(key = "deviceData", value = deviceData)
             navController.navigate("ConnectScreen")
-
         }
     ) {
         Row(modifier = Modifier
