@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
@@ -57,6 +58,9 @@ fun ScanScreen(navController: NavHostController, bleManager: BleManager) {
     val isScanning = remember { mutableStateOf(false) }
     val context = LocalContext.current
     bleManager.setScanList(scanList)
+
+    // Observe the deviceData from ConnectScreen using navController
+    val deviceData = navController.currentBackStackEntry?.savedStateHandle?.get<DeviceRoomData>("deviceData")
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -140,6 +144,7 @@ fun ScanItem(
     deviceData: DeviceRoomData,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val deviceDataState = rememberUpdatedState(deviceData) // Remember the deviceData
 
     Card(
         colors = CardDefaults.cardColors(
@@ -148,7 +153,8 @@ fun ScanItem(
         modifier = Modifier.padding(vertical = 4.dp),
         onClick = {
 //            bleManager.stopBleScan()
-            navController.currentBackStackEntry?.savedStateHandle?.set(key = "deviceData", value = deviceData)
+            // Pass the deviceData to the ConnectScreen
+            navController.currentBackStackEntry?.savedStateHandle?.set(key = "deviceData", value = deviceDataState.value)
             navController.navigate("ConnectScreen")
         }
     ) {

@@ -54,6 +54,13 @@ class BleManager @Inject constructor(
                         deviceAddress = result.device.address ?: "null",
                         manufacturerData = manufacturerData[16505]
                     )
+
+                    // Insert the scan result into the Room database
+                    MainScope().launch {
+                        deviceDataRepository.insertDeviceData(scanItem)
+                        Log.d("BleManager", "Inserted data into Room database: $scanItem")
+                    }
+
                     if (!scanList!!.contains(scanItem)) {
                         scanList!!.add(scanItem)
                     }

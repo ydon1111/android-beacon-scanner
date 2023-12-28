@@ -46,18 +46,20 @@ import com.example.android_beacon_scanner.room.DeviceRoomData
 fun ConnectScreen(navController: NavController, bleManager: BleManager) {
     // Previous device data
     val previousDeviceData = navController.previousBackStackEntry?.savedStateHandle?.get<DeviceRoomData>("deviceData")
-
     // State to track the currently connected device name
     var connectedDeviceName by remember { mutableStateOf("") }
-
     // State to track the accumulated manufacturer data
     var accumulatedManufacturerData by remember { mutableStateOf("") }
-
-    val emptyDeviceAddress = ByteArray(6) // Create a byte array of length 6 to represent an empty address
-    val defaultDeviceData = DeviceRoomData(0, "", "", "", emptyDeviceAddress)
-
     // Check if the deviceName matches the initial connection
     val isDeviceNameMatched = connectedDeviceName == (previousDeviceData?.deviceName ?: "")
+    val emptyDeviceAddress = ByteArray(6) // Create a byte array of length 6 to represent an empty address
+    // Check if the deviceName matches the initial connection
+
+    val defaultDeviceData = DeviceRoomData(0, "", "", "", emptyDeviceAddress)
+
+
+    var accumulatedData by remember { mutableStateOf("") }
+
 
     bleManager.onConnectedStateObserve(object : BleInterface {
         override fun onConnectedStateObserve(isConnected: Boolean, data: String) {
@@ -75,6 +77,9 @@ fun ConnectScreen(navController: NavController, bleManager: BleManager) {
                 // Accumulate manufacturer data
                 val manufacturerData = previousDeviceData?.manufacturerData?.joinToString(", ") ?: ""
                 accumulatedManufacturerData += "\n$manufacturerData"
+
+                // Accumulate the accumulated data
+                accumulatedData += "\n$data" // Here, data is the text you want to accumulate
             } else {
                 // Handle disconnection
             }
@@ -90,6 +95,14 @@ fun ConnectScreen(navController: NavController, bleManager: BleManager) {
             .fillMaxSize()
             .padding(10.dp)
     ) {
+        Text(
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+            text = connectedDeviceName,
+            style = TextStyle(
+                fontSize = 25.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        )
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -97,14 +110,17 @@ fun ConnectScreen(navController: NavController, bleManager: BleManager) {
             if (declarationDialogState) {
                 InfoDialog() { declarationDialogState = false }
             }
+            ManufacturerDataView(connectedDeviceName, accumulatedManufacturerData)
+
             Text(
                 modifier = Modifier.align(Alignment.CenterVertically),
-                text = connectedDeviceName,
+                text = accumulatedData,
                 style = TextStyle(
                     fontSize = 25.sp,
                     fontWeight = FontWeight.SemiBold
                 )
             )
+
             IconButton(
                 onClick = {
                     declarationDialogState = true
