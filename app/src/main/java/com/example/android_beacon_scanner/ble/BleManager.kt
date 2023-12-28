@@ -125,13 +125,14 @@ class BleManager @Inject constructor(
                         true,
                         sendText
                     )
+
+
+
                 }.cancel()
             }
         }
 
-        private suspend fun isDeviceDataExists(deviceAddress: String): Boolean {
-            return deviceDataRepository.isDeviceDataExists(deviceAddress)
-        }
+
 
         @SuppressLint("MissingPermission")
         override fun onCharacteristicRead(
@@ -185,9 +186,7 @@ class BleManager @Inject constructor(
 
     @SuppressLint("MissingPermission")
     fun startBleConnectGatt(deviceData: DeviceRoomData) {
-        bluetoothAdapter
-            .getRemoteDevice(deviceData.deviceAddress)
-            .connectGatt(context, false, gattCallback)
+        bluetoothAdapter.getRemoteDevice(deviceData.deviceAddress).connectGatt(context, false, gattCallback)
     }
 
     fun setScanList(pScanList: SnapshotStateList<DeviceRoomData>) {
@@ -197,6 +196,21 @@ class BleManager @Inject constructor(
     fun onConnectedStateObserve(pConnectedStateObserver: BleInterface) {
         connectedStateObserver = pConnectedStateObserver
     }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun isDeviceDataExists(deviceAddress: String): Boolean {
+        return deviceDataRepository.isDeviceDataExists(deviceAddress)
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun insertDeviceDataIfNotExists(deviceData: DeviceRoomData) {
+        val deviceAddress = deviceData.deviceAddress
+        if (!isDeviceDataExists(deviceAddress)) {
+            deviceDataRepository.insertDeviceData(deviceData)
+        }
+    }
+
+
 
 
 
