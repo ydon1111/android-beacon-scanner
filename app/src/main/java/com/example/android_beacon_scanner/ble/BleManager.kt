@@ -1,5 +1,6 @@
 package com.example.android_beacon_scanner
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
@@ -10,17 +11,21 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.core.app.ActivityCompat
 import androidx.core.util.containsKey
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomData
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -209,33 +214,90 @@ class BleManager @Inject constructor(
             deviceDataRepository.insertDeviceData(deviceData)
         }
     }
+
+    override fun onCharacteristicRead(
+        gatt: BluetoothGatt?,
+        characteristic: BluetoothGattCharacteristic?,
+        status: Int
+    ) {
+        super.onCharacteristicRead(gatt, characteristic, status)
+
+        if (status == BluetoothGatt.GATT_SUCCESS) {
+            val manufacturerData = characteristic?.value
+            val serviceUuid = characteristic?.uuid.toString()
+
+            if (manufacturerData != null) {
+                val deviceName = gatt?.device?.name ?: "null"
+                val deviceAddress = gatt?.device?.address ?: "null"
+
+                // Extract and insert the data into the Room database
+                val numDataPoints = 18
+                val startIndex = 2
+                val accXList = mutableListOf<Int>()
+                val accYList = mutableListOf<Int>()
+                val accZList = mutableListOf<Int>()
+                val gyroXList = mutableListOf<Int>()
+                val gyroYList = mutableListOf<Int>()
+                val gyroZList = mutableListOf<Int>()
+
+                for (i in 0 until numDataPoints) {
+                    val offset = startIndex + 12 * i
+                    val accX = ByteBuffer.wrap(manufacturerData, offset, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+                    val accY = ByteBuffer.wrap(manufacturerData, offset + 2, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+                    val accZ = ByteBuffer.wrap(manufacturerData, offset + 4, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+                    val gyroX = ByteBuffer.wrap(manufacturerData, offset + 6, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+                    val gyroY = ByteBuffer.wrap(manufacturerData, offset + 8, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+                    val gyroZ = ByteBuffer.wrap(manufacturerData, offset + 10, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+
+                    accXList.add(accX)
+                    accYList.add(accY)
+                    accZList.add(accZ)
+                    gyroXList.add(gyroX)
+                    gyroYList.add(gyroY)
+                    gyroZList.add(gyroZ)
+                }
+
+                // Create a data entity for each data point and insert into Room database
+                for (i in 0 until numDataPoints) {
+                    val deviceData = DeviceRoomDataEntity(
+                        deviceName = deviceName,
+                        serviceUuid = serviceUuid,
+                        deviceAddress = deviceAddress,
+                        accX = accXList[i],
+                        accY = accYList[i],
+                        accZ = accZList[i],
+                        gyroX = gyroXList[i],
+                        gyroY = gyroYList[i],
+                        gyroZ = gyroZList[i]
+                    )
+                    MainScope().launch {
+                        deviceDataRepository.insertDeviceData(deviceData)
+                    }
+                }
+
+                // Extract additional data fields and insert into Room database
+                val dataView = ByteBuffer.wrap(manufacturerData).order(ByteOrder.LITTLE_ENDIAN)
+                val date = dataView.getInt(0)  // Assuming date is a 32-bit integer
+                val temperature = dataView.getShort(8) / 100.0  // Assuming temperature is a 16-bit integer (centigrade)
+                val velcro = dataView.get(10) != 0.toByte()  // Assuming velcro is a boolean (single byte)
+                val count = dataView.getShort(11).toInt()  // Assuming count is a 16-bit unsigned integer
+
+                // Insert the additional data into the Room database
+                val additionalData = DeviceRoomDataEntity(
+                    deviceName = deviceName,
+                    serviceUuid = serviceUuid,
+                    deviceAddress = deviceAddress,
+                    date = date,
+                    temperature = temperature,
+                    velcro = velcro,
+                    count = count
+                )
+                MainScope().launch {
+                    deviceDataRepository.insertDeviceData(additionalData)
+                }
+            }
+        }
+    }
 }
 
 
-//// Sample data extraction and conversion
-//val numDataPoints = 18 // The number of data points to extract
-//
-//val ACC_X = mutableListOf<Int>()
-//val ACC_Y = mutableListOf<Int>()
-//val ACC_Z = mutableListOf<Int>()
-//val Gyro_X = mutableListOf<Int>()
-//val Gyro_Y = mutableListOf<Int>()
-//val Gyro_Z = mutableListOf<Int>()
-//
-//for (i in 0 until numDataPoints) {
-//    val startIndex = 2 + 12 * i // Adjust this index based on your data format
-//
-//    val accX = ByteBuffer.wrap(manufacturerSpecificDataBytes, startIndex, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-//    val accY = ByteBuffer.wrap(manufacturerSpecificDataBytes, startIndex + 2, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-//    val accZ = ByteBuffer.wrap(manufacturerSpecificDataBytes, startIndex + 4, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-//    val gyroX = ByteBuffer.wrap(manufacturerSpecificDataBytes, startIndex + 6, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-//    val gyroY = ByteBuffer.wrap(manufacturerSpecificDataBytes, startIndex + 8, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-//    val gyroZ = ByteBuffer.wrap(manufacturerSpecificDataBytes, startIndex + 10, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-//
-//    ACC_X.add(accX)
-//    ACC_Y.add(accY)
-//    ACC_Z.add(accZ)
-//    Gyro_X.add(gyroX)
-//    Gyro_Y.add(gyroY)
-//    Gyro_Z.add(gyroZ)
-//}
