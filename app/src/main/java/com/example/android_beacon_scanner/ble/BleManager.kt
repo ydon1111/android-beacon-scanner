@@ -209,12 +209,6 @@ class BleManager @Inject constructor(
             deviceDataRepository.insertDeviceData(deviceData)
         }
     }
-
-
-
-
-
-
 }
 
 
