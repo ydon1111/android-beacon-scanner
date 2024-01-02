@@ -1,9 +1,6 @@
 package com.example.android_beacon_scanner.ui
 
 import android.annotation.SuppressLint
-import android.os.Build
-import android.util.Log
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,27 +34,54 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.example.android_beacon_scanner.BleInterface
 import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomData
 
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
+import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 
 @SuppressLint("MissingPermission")
 @Composable
-fun ConnectScreen(navController: NavHostController, bleManager: BleManager) {
-    val deviceData = navController.previousBackStackEntry?.savedStateHandle?.get<DeviceRoomData>("deviceData")
+fun ConnectScreen(
+    navController: NavHostController,
+    bleManager: BleManager,
+    deviceDataRepository: DeviceDataRepository
+) {
+    val deviceData = navController.previousBackStackEntry?.savedStateHandle?.get<DeviceRoomDataEntity>("deviceData")
     val isConnecting = remember { mutableStateOf(false) }
     val connectedData = remember { mutableStateOf("") }
+    var manufacturerDataList by remember { mutableStateOf<List<ByteArray?>>(emptyList()) }
+    val allDeviceDataState = deviceDataRepository.allDeviceRoomData.collectAsState(emptyList())
 
-    bleManager.onConnectedStateObserve(object : BleInterface{
+    LaunchedEffect(deviceData?.deviceName) {
+        deviceData?.deviceName?.let { deviceName ->
+            val data = withContext(Dispatchers.IO) {
+                deviceDataRepository.getDeviceData(deviceName)
+            }
+            if (data != null) {
+                manufacturerDataList = allDeviceDataState.value
+                    .filter { it.deviceName == deviceName }
+                    .mapNotNull { it.manufacturerData }
+            }
+        }
+    }
+
+    bleManager.onConnectedStateObserve(object : BleInterface {
         override fun onConnectedStateObserve(isConnected: Boolean, data: String) {
             isConnecting.value = isConnected
             connectedData.value = connectedData.value + "\n" + data
         }
     })
+
     var declarationDialogState by remember {
         mutableStateOf(false)
     }
@@ -69,9 +94,9 @@ fun ConnectScreen(navController: NavHostController, bleManager: BleManager) {
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            if (declarationDialogState) {
-                InfoDialog() {declarationDialogState = false}
-            }
+//            if (declarationDialogState) {
+//                InfoDialog() { declarationDialogState = false }
+//            }
             Text(
                 modifier = Modifier.align(Alignment.CenterVertically),
                 text = deviceData?.deviceName ?: "Null",
@@ -84,7 +109,7 @@ fun ConnectScreen(navController: NavHostController, bleManager: BleManager) {
                 onClick = {
                     declarationDialogState = true
                 },
-            ){
+            ) {
                 Icon(
                     imageVector = Icons.TwoTone.Info,
                     tint = Color(0xFF1D8821),
@@ -93,96 +118,110 @@ fun ConnectScreen(navController: NavHostController, bleManager: BleManager) {
             }
         }
 
-        ConnectButton(bleManager, isConnecting, deviceData)
+//        ConnectButton(bleManager, isConnecting, deviceData)
 
         val scroll = rememberScrollState(0)
-        Text(
-            modifier = Modifier
-                .padding(top = 5.dp)
-                .verticalScroll(scroll),
-            text = connectedData.value,
-            style = TextStyle(
-                fontSize = 14.sp,
-            )
-        )
-    }
-}
-
-@Composable
-fun InfoDialog(onChangeState: ()-> Unit) {
-    Dialog(
-        onDismissRequest = onChangeState
-    ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(50.dp)
-                .height(120.dp)
-                .background(
-                    Color.White,
-                    shape = RoundedCornerShape(2.dp)
-                ),
-            verticalArrangement = Arrangement.SpaceBetween
-
+                .padding(top = 5.dp)
+                .verticalScroll(scroll)
         ) {
+
             Text(
-                modifier = Modifier.padding(5.dp),
-                fontWeight = FontWeight.Bold,
-                text =
-                "- Service UUID" + "\n" +
-                        "      Characteristic UUID"
-
+                text = connectedData.value,
+                style = TextStyle(
+                    fontSize = 14.sp,
+                )
             )
-            Button(
-                modifier= Modifier.align(Alignment.CenterHorizontally),
-                shape = RoundedCornerShape(2.dp),
-                colors = ButtonDefaults.buttonColors(Color(0xFF1D8821)),
-                onClick = onChangeState
-            ) {
-                Text(text = "Close")
+
+            // Room의 Flow를 사용하여 데이터를 표시
+            allDeviceDataState.value.forEachIndexed { index, deviceRoomData ->
+                Text(
+                    text = "Device Data $index: ${deviceRoomData.manufacturerData?.contentToString()}"
+                )
             }
         }
     }
 }
 
-@SuppressLint("MissingPermission")
-@Composable
-fun ConnectButton(
-    bleManager: BleManager,
-    isConnecting: MutableState<Boolean>,
-    deviceData: DeviceRoomData?
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(top = 5.dp)
-    ) {
-        Button(
-            modifier = Modifier
-                .weight(1f)
-                .padding(end = 2.dp),
-            shape = RoundedCornerShape(2.dp),
-            colors = ButtonDefaults.buttonColors(Color(0xFF1D8821)),
-            enabled = !isConnecting.value,
-            onClick = {
-//                bleManager.startBleConnectGatt(deviceData?: DeviceRoomData("", "", ""))
-            }
-        ) {
-            Text(text = "Connect")
-        }
-        Button(
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 2.dp),
-            shape = RoundedCornerShape(2.dp),
-            colors = ButtonDefaults.buttonColors(Color(0xFF1D8821)),
-            enabled = isConnecting.value,
-            onClick = { bleManager.bleGatt!!.disconnect() }
-        ) {
-            Text(text = "Disconnect")
-        }
-    }
-}
+//@Composable
+//fun InfoDialog(onChangeState: ()-> Unit) {
+//    Dialog(
+//        onDismissRequest = onChangeState
+//    ) {
+//        Column(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .padding(50.dp)
+//                .height(120.dp)
+//                .background(
+//                    Color.White,
+//                    shape = RoundedCornerShape(2.dp)
+//                ),
+//            verticalArrangement = Arrangement.SpaceBetween
+//
+//        ) {
+//            Text(
+//                modifier = Modifier.padding(5.dp),
+//                fontWeight = FontWeight.Bold,
+//                text =
+//                "- Service UUID" + "\n" +
+//                        "      Characteristic UUID"
+//
+//            )
+//            Button(
+//                modifier= Modifier.align(Alignment.CenterHorizontally),
+//                shape = RoundedCornerShape(2.dp),
+//                colors = ButtonDefaults.buttonColors(Color(0xFF1D8821)),
+//                onClick = onChangeState
+//            ) {
+//                Text(text = "Close")
+//            }
+//        }
+//    }
+//}
+
+
+
+
+//@SuppressLint("MissingPermission")
+//@Composable
+//fun ConnectButton(
+//    bleManager: BleManager,
+//    isConnecting: MutableState<Boolean>,
+//    deviceData: DeviceRoomData?
+//) {
+//    Row(
+//        Modifier
+//            .fillMaxWidth()
+//            .padding(top = 5.dp)
+//    ) {
+//        Button(
+//            modifier = Modifier
+//                .weight(1f)
+//                .padding(end = 2.dp),
+//            shape = RoundedCornerShape(2.dp),
+//            colors = ButtonDefaults.buttonColors(Color(0xFF1D8821)),
+//            enabled = !isConnecting.value,
+//            onClick = {
+////                bleManager.startBleConnectGatt(deviceData?: DeviceRoomData("", "", ""))
+//            }
+//        ) {
+//            Text(text = "Connect")
+//        }
+//        Button(
+//            modifier = Modifier
+//                .weight(1f)
+//                .padding(start = 2.dp),
+//            shape = RoundedCornerShape(2.dp),
+//            colors = ButtonDefaults.buttonColors(Color(0xFF1D8821)),
+//            enabled = isConnecting.value,
+//            onClick = { bleManager.bleGatt!!.disconnect() }
+//        ) {
+//            Text(text = "Disconnect")
+//        }
+//    }
+//}
 
 
 

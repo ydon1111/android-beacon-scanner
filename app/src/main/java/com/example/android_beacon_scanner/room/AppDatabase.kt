@@ -8,7 +8,7 @@ import androidx.room.Room.databaseBuilder
 import androidx.room.RoomDatabase
 
 
-@Database(entities = [DeviceRoomData::class], version = 1, exportSchema = false)
+@Database(entities = [DeviceRoomDataEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun deviceDataDao(): DeviceDataDao
 

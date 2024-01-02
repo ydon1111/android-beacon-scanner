@@ -18,6 +18,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.core.util.containsKey
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomData
+import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -32,7 +33,7 @@ class BleManager @Inject constructor(
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter = bluetoothManager.adapter
     private val bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
-    private var scanList: SnapshotStateList<DeviceRoomData>? = null
+    private var scanList: SnapshotStateList<DeviceRoomDataEntity>? = null
     private var connectedStateObserver: BleInterface? = null
     var bleGatt: BluetoothGatt? = null
 
@@ -48,7 +49,8 @@ class BleManager @Inject constructor(
                     Log.d("onScanResult", result.toString())
 
                     val uuid = result.scanRecord?.serviceUuids?.toString() ?: "null"
-                    val scanItem = DeviceRoomData(
+
+                    val scanItem = DeviceRoomDataEntity(
                         deviceName = deviceName,
                         serviceUuid = uuid,
                         deviceAddress = result.device.address ?: "null",
@@ -61,9 +63,7 @@ class BleManager @Inject constructor(
                         Log.d("BleManager", "Inserted data into Room database: $scanItem")
                     }
 
-                    if (!scanList!!.contains(scanItem)) {
-                        scanList!!.add(scanItem)
-                    }
+                    scanList?.add(scanItem)
                 }
             }
         }
@@ -151,7 +151,7 @@ class BleManager @Inject constructor(
                     val deviceAddress = gatt?.device?.address ?: "null"
 
                         // Insert the data into the Room database
-                        val deviceData = DeviceRoomData(
+                        val deviceData = DeviceRoomDataEntity(
                             deviceName = deviceName,
                             serviceUuid = serviceUuid,
                             deviceAddress = deviceAddress,
@@ -189,7 +189,7 @@ class BleManager @Inject constructor(
         bluetoothAdapter.getRemoteDevice(deviceData.deviceAddress).connectGatt(context, false, gattCallback)
     }
 
-    fun setScanList(pScanList: SnapshotStateList<DeviceRoomData>) {
+    fun setScanList(pScanList: SnapshotStateList<DeviceRoomDataEntity>) {
         scanList = pScanList
     }
 
@@ -203,7 +203,7 @@ class BleManager @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    private suspend fun insertDeviceDataIfNotExists(deviceData: DeviceRoomData) {
+    private suspend fun insertDeviceDataIfNotExists(deviceData: DeviceRoomDataEntity) {
         val deviceAddress = deviceData.deviceAddress
         if (!isDeviceDataExists(deviceAddress)) {
             deviceDataRepository.insertDeviceData(deviceData)

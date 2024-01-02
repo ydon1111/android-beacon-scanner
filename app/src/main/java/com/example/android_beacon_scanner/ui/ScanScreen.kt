@@ -47,14 +47,17 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
 import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.R
+import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomData
+import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
 import com.example.android_beacon_scanner.ui.theme.ScanItemTypography
+import kotlinx.coroutines.runBlocking
 
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ScanScreen(navController: NavHostController, bleManager: BleManager) {
-    val scanList = remember { mutableStateListOf<DeviceRoomData>() }
+    val scanList = remember { mutableStateListOf<DeviceRoomDataEntity>() }
     val isScanning = remember { mutableStateOf(false) }
     val context = LocalContext.current
     bleManager.setScanList(scanList)
@@ -119,7 +122,7 @@ fun ScanButton(
 fun ScanList(
     navController: NavHostController,
     bleManager: BleManager,
-    scanList: SnapshotStateList<DeviceRoomData>
+    scanList: SnapshotStateList<DeviceRoomDataEntity>
 ) {
 
     val uniqueDeviceNames = scanList.distinctBy { it.deviceName }
@@ -141,7 +144,7 @@ fun ScanList(
 fun ScanItem(
     navController: NavHostController,
     bleManager: BleManager,
-    deviceData: DeviceRoomData,
+    deviceData: DeviceRoomDataEntity,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val deviceDataState = rememberUpdatedState(deviceData) // Remember the deviceData
@@ -154,6 +157,8 @@ fun ScanItem(
         onClick = {
 //            bleManager.stopBleScan()
             // Pass the deviceData to the ConnectScreen
+
+
             navController.currentBackStackEntry?.savedStateHandle?.set(key = "deviceData", value = deviceDataState.value)
             navController.navigate("ConnectScreen")
         }

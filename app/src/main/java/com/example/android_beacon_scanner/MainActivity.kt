@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.ui.ConnectScreen
 import com.example.android_beacon_scanner.ui.ScanScreen
 import com.example.android_beacon_scanner.ui.theme.AndroidbeaconscannerTheme
@@ -30,6 +31,11 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
     @Inject
     lateinit var bleManager: BleManager
+
+    @Inject
+    lateinit var deviceDataRepository: DeviceDataRepository // DeviceDataRepository 주입
+
+
 
     // onCreate 메서드
     @RequiresApi(Build.VERSION_CODES.O)
@@ -52,7 +58,8 @@ class MainActivity : ComponentActivity() {
                         composable(route = "ConnectScreen") {
                             ConnectScreen(
                                 navController,
-                                bleManager
+                                bleManager,
+                                deviceDataRepository
                             )
                         }
                     }
