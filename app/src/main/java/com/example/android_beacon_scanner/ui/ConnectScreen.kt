@@ -62,6 +62,7 @@ fun ConnectScreen(
     var manufacturerDataList by remember { mutableStateOf<List<ByteArray?>>(emptyList()) }
     val allDeviceDataState = deviceDataRepository.allDeviceRoomData.collectAsState(emptyList())
 
+
     LaunchedEffect(deviceData?.deviceName) {
         deviceData?.deviceName?.let { deviceName ->
             val data = withContext(Dispatchers.IO) {
@@ -73,6 +74,13 @@ fun ConnectScreen(
                     .mapNotNull { it.manufacturerData }
             }
         }
+    }
+
+    // Use a LaunchedEffect to collect data from the database and update manufacturerDataList
+    LaunchedEffect(allDeviceDataState.value) {
+        manufacturerDataList = allDeviceDataState.value
+            .filter { it.deviceName == deviceData?.deviceName }
+            .mapNotNull { it.manufacturerData }
     }
 
     bleManager.onConnectedStateObserve(object : BleInterface {
@@ -135,9 +143,9 @@ fun ConnectScreen(
             )
 
             // Room의 Flow를 사용하여 데이터를 표시
-            allDeviceDataState.value.forEachIndexed { index, deviceRoomData ->
+            manufacturerDataList.forEachIndexed { index, manufacturerData ->
                 Text(
-                    text = "Device Data $index: ${deviceRoomData.manufacturerData?.contentToString()}"
+                    text = "Device Data $index: ${manufacturerData?.contentToString()}"
                 )
             }
         }

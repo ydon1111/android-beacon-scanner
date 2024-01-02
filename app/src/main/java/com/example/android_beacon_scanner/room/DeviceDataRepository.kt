@@ -37,15 +37,7 @@ class DeviceDataRepository @Inject constructor(private val deviceDataDao: Device
             manufacturerData = this.manufacturerData
         )
     }
-//    private fun DeviceRoomData.toDeviceRoomDataEntity(): DeviceRoomDataEntity {
-//        return DeviceRoomDataEntity(
-//            id = this.id,
-//            deviceName = this.deviceName,
-//            serviceUuid = this.serviceUuid,
-//            deviceAddress = this.deviceAddress,
-//            manufacturerData = this.manufacturerData
-//        )
-//    }
+
 
     suspend fun deleteAllDeviceData() {
         withContext(Dispatchers.IO) {
