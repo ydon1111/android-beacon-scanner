@@ -23,5 +23,5 @@ data class DeviceRoomDataEntity(
     var accZ: Int? = null,  // Add accZ field here
     var gyroX: Int? = null, // Add gyroX field here
     var gyroY: Int? = null, // Add gyroY field here
-    var gyroZ: Int? = null  // Add gyroZ field here
+    var gyroZ: Int? = null,  // Add gyroZ field here
 ): Parcelable

@@ -132,11 +132,9 @@ class BleManager @Inject constructor(
                     )
 
 
-
                 }.cancel()
             }
         }
-
 
 
         @SuppressLint("MissingPermission")
@@ -155,149 +153,149 @@ class BleManager @Inject constructor(
                     val deviceName = gatt?.device?.name ?: "null"
                     val deviceAddress = gatt?.device?.address ?: "null"
 
-                        // Insert the data into the Room database
-                        val deviceData = DeviceRoomDataEntity(
+                    // Extract and insert the data into the Room database
+                    val numDataPoints = 18
+                    val startIndex = 2
+                    val accXList = mutableListOf<Int>()
+                    val accYList = mutableListOf<Int>()
+                    val accZList = mutableListOf<Int>()
+                    val gyroXList = mutableListOf<Int>()
+                    val gyroYList = mutableListOf<Int>()
+                    val gyroZList = mutableListOf<Int>()
+
+                    for (i in 0 until numDataPoints) {
+                        val offset = startIndex + 12 * i
+                        val accX =
+                            ByteBuffer.wrap(manufacturerData, offset, 2)
+                                .order(ByteOrder.LITTLE_ENDIAN)
+                                .short.toInt()
+                        val accY =
+                            ByteBuffer.wrap(manufacturerData, offset + 2, 2)
+                                .order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+                        val accZ =
+                            ByteBuffer.wrap(manufacturerData, offset + 4, 2)
+                                .order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+                        val gyroX =
+                            ByteBuffer.wrap(manufacturerData, offset + 6, 2)
+                                .order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+                        val gyroY =
+                            ByteBuffer.wrap(manufacturerData, offset + 8, 2)
+                                .order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+                        val gyroZ =
+                            ByteBuffer.wrap(manufacturerData, offset + 10, 2)
+                                .order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+
+                        accXList.add(accX)
+                        accYList.add(accY)
+                        accZList.add(accZ)
+                        gyroXList.add(gyroX)
+                        gyroYList.add(gyroY)
+                        gyroZList.add(gyroZ)
+                    }
+
+                    val manufacturerData = characteristic?.value
+                    val serviceUuid = characteristic?.uuid.toString()
+
+                    if (manufacturerData != null) {
+                        val deviceName = gatt?.device?.name ?: "null"
+                        val deviceAddress = gatt?.device?.address ?: "null"
+
+                        // Create a data entity for each data point and insert into Room database
+                        for (i in 0 until numDataPoints) {
+                            val deviceData = DeviceRoomDataEntity(
+                                deviceName = deviceName,
+                                serviceUuid = serviceUuid,
+                                deviceAddress = deviceAddress,
+                                accX = accXList[i],
+                                accY = accYList[i],
+                                accZ = accZList[i],
+                                gyroX = gyroXList[i],
+                                gyroY = gyroYList[i],
+                                gyroZ = gyroZList[i],
+                                manufacturerData = manufacturerData // Provide the manufacturerData here
+                            )
+                            MainScope().launch {
+                                deviceDataRepository.insertDeviceData(deviceData)
+                            }
+                        }
+
+                        // Extract additional data fields and insert into Room database
+                        val dataView =
+                            ByteBuffer.wrap(manufacturerData).order(ByteOrder.LITTLE_ENDIAN)
+                        val date = dataView.getInt(0)  // Assuming date is a 32-bit integer
+                        val temperature =
+                            dataView.getShort(8) / 100.0  // Assuming temperature is a 16-bit integer (centigrade)
+                        val velcro =
+                            dataView.get(10) != 0.toByte()  // Assuming velcro is a boolean (single byte)
+                        val count = dataView.getShort(11)
+                            .toInt()  // Assuming count is a 16-bit unsigned integer
+
+                        // Insert the additional data into the Room database
+                        val additionalData = DeviceRoomDataEntity(
                             deviceName = deviceName,
                             serviceUuid = serviceUuid,
                             deviceAddress = deviceAddress,
-                            manufacturerData = manufacturerData
+                            date = date,
+                            temperature = temperature,
+                            velcro = velcro,
+                            count = count,
+                            manufacturerData = manufacturerData // Provide the manufacturerData here as well
                         )
+
                         MainScope().launch {
-                            deviceDataRepository.insertDeviceData(deviceData)
+                            deviceDataRepository.insertDeviceData(additionalData)
                         }
-
-                }
-            }
-        }
-
-    }
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    @SuppressLint("MissingPermission")
-    fun startBleScan() {
-        scanList?.clear()
-
-        val scanSettings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
-            .setLegacy(false)
-            .build()
-        bluetoothLeScanner.startScan(null, scanSettings, scanCallback)
-    }
-
-    @SuppressLint("MissingPermission")
-    fun stopBleScan() {
-        bluetoothLeScanner.stopScan(scanCallback)
-    }
-
-    @SuppressLint("MissingPermission")
-    fun startBleConnectGatt(deviceData: DeviceRoomData) {
-        bluetoothAdapter.getRemoteDevice(deviceData.deviceAddress).connectGatt(context, false, gattCallback)
-    }
-
-    fun setScanList(pScanList: SnapshotStateList<DeviceRoomDataEntity>) {
-        scanList = pScanList
-    }
-
-    fun onConnectedStateObserve(pConnectedStateObserver: BleInterface) {
-        connectedStateObserver = pConnectedStateObserver
-    }
-
-    @SuppressLint("MissingPermission")
-    private suspend fun isDeviceDataExists(deviceAddress: String): Boolean {
-        return deviceDataRepository.isDeviceDataExists(deviceAddress)
-    }
-
-    @SuppressLint("MissingPermission")
-    private suspend fun insertDeviceDataIfNotExists(deviceData: DeviceRoomDataEntity) {
-        val deviceAddress = deviceData.deviceAddress
-        if (!isDeviceDataExists(deviceAddress)) {
-            deviceDataRepository.insertDeviceData(deviceData)
-        }
-    }
-
-    override fun onCharacteristicRead(
-        gatt: BluetoothGatt?,
-        characteristic: BluetoothGattCharacteristic?,
-        status: Int
-    ) {
-        super.onCharacteristicRead(gatt, characteristic, status)
-
-        if (status == BluetoothGatt.GATT_SUCCESS) {
-            val manufacturerData = characteristic?.value
-            val serviceUuid = characteristic?.uuid.toString()
-
-            if (manufacturerData != null) {
-                val deviceName = gatt?.device?.name ?: "null"
-                val deviceAddress = gatt?.device?.address ?: "null"
-
-                // Extract and insert the data into the Room database
-                val numDataPoints = 18
-                val startIndex = 2
-                val accXList = mutableListOf<Int>()
-                val accYList = mutableListOf<Int>()
-                val accZList = mutableListOf<Int>()
-                val gyroXList = mutableListOf<Int>()
-                val gyroYList = mutableListOf<Int>()
-                val gyroZList = mutableListOf<Int>()
-
-                for (i in 0 until numDataPoints) {
-                    val offset = startIndex + 12 * i
-                    val accX = ByteBuffer.wrap(manufacturerData, offset, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-                    val accY = ByteBuffer.wrap(manufacturerData, offset + 2, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-                    val accZ = ByteBuffer.wrap(manufacturerData, offset + 4, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-                    val gyroX = ByteBuffer.wrap(manufacturerData, offset + 6, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-                    val gyroY = ByteBuffer.wrap(manufacturerData, offset + 8, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-                    val gyroZ = ByteBuffer.wrap(manufacturerData, offset + 10, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-
-                    accXList.add(accX)
-                    accYList.add(accY)
-                    accZList.add(accZ)
-                    gyroXList.add(gyroX)
-                    gyroYList.add(gyroY)
-                    gyroZList.add(gyroZ)
-                }
-
-                // Create a data entity for each data point and insert into Room database
-                for (i in 0 until numDataPoints) {
-                    val deviceData = DeviceRoomDataEntity(
-                        deviceName = deviceName,
-                        serviceUuid = serviceUuid,
-                        deviceAddress = deviceAddress,
-                        accX = accXList[i],
-                        accY = accYList[i],
-                        accZ = accZList[i],
-                        gyroX = gyroXList[i],
-                        gyroY = gyroYList[i],
-                        gyroZ = gyroZList[i]
-                    )
-                    MainScope().launch {
-                        deviceDataRepository.insertDeviceData(deviceData)
                     }
                 }
-
-                // Extract additional data fields and insert into Room database
-                val dataView = ByteBuffer.wrap(manufacturerData).order(ByteOrder.LITTLE_ENDIAN)
-                val date = dataView.getInt(0)  // Assuming date is a 32-bit integer
-                val temperature = dataView.getShort(8) / 100.0  // Assuming temperature is a 16-bit integer (centigrade)
-                val velcro = dataView.get(10) != 0.toByte()  // Assuming velcro is a boolean (single byte)
-                val count = dataView.getShort(11).toInt()  // Assuming count is a 16-bit unsigned integer
-
-                // Insert the additional data into the Room database
-                val additionalData = DeviceRoomDataEntity(
-                    deviceName = deviceName,
-                    serviceUuid = serviceUuid,
-                    deviceAddress = deviceAddress,
-                    date = date,
-                    temperature = temperature,
-                    velcro = velcro,
-                    count = count
-                )
-                MainScope().launch {
-                    deviceDataRepository.insertDeviceData(additionalData)
-                }
             }
         }
     }
-}
+
+        @RequiresApi(Build.VERSION_CODES.O)
+        @SuppressLint("MissingPermission")
+        fun startBleScan() {
+            scanList?.clear()
+
+            val scanSettings = ScanSettings.Builder()
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+                .setLegacy(false)
+                .build()
+            bluetoothLeScanner.startScan(null, scanSettings, scanCallback)
+        }
+
+        @SuppressLint("MissingPermission")
+        fun stopBleScan() {
+            bluetoothLeScanner.stopScan(scanCallback)
+        }
+
+        @SuppressLint("MissingPermission")
+        fun startBleConnectGatt(deviceData: DeviceRoomData) {
+            bluetoothAdapter.getRemoteDevice(deviceData.deviceAddress)
+                .connectGatt(context, false, gattCallback)
+        }
+
+        fun setScanList(pScanList: SnapshotStateList<DeviceRoomDataEntity>) {
+            scanList = pScanList
+        }
+
+        fun onConnectedStateObserve(pConnectedStateObserver: BleInterface) {
+            connectedStateObserver = pConnectedStateObserver
+        }
+
+        @SuppressLint("MissingPermission")
+        private suspend fun isDeviceDataExists(deviceAddress: String): Boolean {
+            return deviceDataRepository.isDeviceDataExists(deviceAddress)
+        }
+
+        @SuppressLint("MissingPermission")
+        private suspend fun insertDeviceDataIfNotExists(deviceData: DeviceRoomDataEntity) {
+            val deviceAddress = deviceData.deviceAddress
+            if (!isDeviceDataExists(deviceAddress)) {
+                deviceDataRepository.insertDeviceData(deviceData)
+            }
+        }
+    }
+
+
 
 
