@@ -2,13 +2,17 @@ package com.example.android_beacon_scanner.room
 
 import android.content.Context
 import android.util.Log
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.Room.databaseBuilder
 import androidx.room.RoomDatabase
 
 
-@Database(entities = [DeviceRoomDataEntity::class], version = 1, exportSchema = false)
+@Database(
+    entities = [DeviceRoomDataEntity::class],
+    version = 1
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun deviceDataDao(): DeviceDataDao
 
@@ -23,8 +27,9 @@ abstract class AppDatabase : RoomDatabase() {
                     instance = databaseBuilder(
                         context.applicationContext,
                         AppDatabase::class.java,
-                        "device_data"
+                        "device_data_all"
                     )
+                        .fallbackToDestructiveMigration()
                         .build()
                 }
             return instance

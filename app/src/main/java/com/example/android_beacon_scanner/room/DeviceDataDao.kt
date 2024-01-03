@@ -1,5 +1,6 @@
 package com.example.android_beacon_scanner.room
 
+import androidx.lifecycle.LiveData
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -21,8 +22,6 @@ interface DeviceDataDao {
     suspend fun isDeviceDataExists(deviceAddress: String): Boolean
 
     @Query("SELECT * FROM device_data WHERE deviceName = :deviceName LIMIT 1")
-    fun getDeviceData(deviceName: String): DeviceRoomData?
-
-
+    fun getDeviceData(deviceName: String): DeviceRoomDataEntity?
 
 }

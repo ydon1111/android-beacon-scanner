@@ -1,5 +1,6 @@
 package com.example.android_beacon_scanner.room
 
+import androidx.lifecycle.distinctUntilChanged
 import kotlinx.coroutines.Dispatchers
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,33 +18,22 @@ class DeviceDataRepository @Inject constructor(private val deviceDataDao: Device
             deviceDataDao.insertDeviceData(deviceRoomData)
         }
     }
-
     suspend fun isDeviceDataExists(deviceAddress: String): Boolean {
         return deviceDataDao.isDeviceDataExists(deviceAddress)
     }
 
-    suspend fun getDeviceData(deviceName: String): DeviceRoomData? {
+    suspend fun getDeviceData(deviceName: String): DeviceRoomDataEntity? {
         return withContext(Dispatchers.IO) {
-            deviceDataDao.getDeviceData(deviceName)?.toDeviceRoomData()
+            deviceDataDao.getDeviceData(deviceName)
         }
     }
-
-    private fun DeviceRoomData.toDeviceRoomData(): DeviceRoomData {
-        return DeviceRoomData(
-            id = this.id,
-            deviceName = this.deviceName,
-            serviceUuid = this.serviceUuid,
-            deviceAddress = this.deviceAddress,
-            manufacturerData = this.manufacturerData
-        )
-    }
-
 
     suspend fun deleteAllDeviceData() {
         withContext(Dispatchers.IO) {
             deviceDataDao.deleteAllDeviceData()
         }
     }
+
 
 
 }

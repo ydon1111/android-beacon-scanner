@@ -1,6 +1,7 @@
 package com.example.android_beacon_scanner.ui
 
 import android.annotation.SuppressLint
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -42,6 +43,7 @@ import com.example.android_beacon_scanner.room.DeviceRoomData
 
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
@@ -62,6 +64,7 @@ fun ConnectScreen(
     var manufacturerDataList by remember { mutableStateOf<List<ByteArray?>>(emptyList()) }
     val allDeviceDataState = deviceDataRepository.allDeviceRoomData.collectAsState(emptyList())
 
+    val temperatureList = remember { mutableStateListOf<String>() }
 
     LaunchedEffect(deviceData?.deviceName) {
         deviceData?.deviceName?.let { deviceName ->
@@ -72,11 +75,24 @@ fun ConnectScreen(
                 manufacturerDataList = allDeviceDataState.value
                     .filter { it.deviceName == deviceName }
                     .mapNotNull { it.manufacturerData }
+
+                // You can add code to update the temperatureList
+                val temperatureData = allDeviceDataState.value
+                    .filter { it.deviceName == deviceName }
+                    .mapNotNull { it.temperature }
+                temperatureList.clear()
+                temperatureList.addAll(temperatureData.map { it.toString() })
             }
         }
     }
 
     // Use a LaunchedEffect to collect data from the database and update manufacturerDataList
+    LaunchedEffect(allDeviceDataState.value) {
+        manufacturerDataList = allDeviceDataState.value
+            .filter { it.deviceName == deviceData?.deviceName }
+            .mapNotNull { it.manufacturerData }
+    }
+
     LaunchedEffect(allDeviceDataState.value) {
         manufacturerDataList = allDeviceDataState.value
             .filter { it.deviceName == deviceData?.deviceName }
@@ -102,9 +118,6 @@ fun ConnectScreen(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-//            if (declarationDialogState) {
-//                InfoDialog() { declarationDialogState = false }
-//            }
             Text(
                 modifier = Modifier.align(Alignment.CenterVertically),
                 text = deviceData?.deviceName ?: "Null",
@@ -126,8 +139,6 @@ fun ConnectScreen(
             }
         }
 
-//        ConnectButton(bleManager, isConnecting, deviceData)
-
         val scroll = rememberScrollState(0)
         Column(
             modifier = Modifier
@@ -148,88 +159,21 @@ fun ConnectScreen(
                     text = "Device Data $index: ${manufacturerData?.contentToString()}"
                 )
             }
+
+            Log.d("TemperatureData", temperatureList.toString())
+
+            // Display temperature data
+            temperatureList.forEachIndexed { index, temperature ->
+                Text(
+                    text = "Temperature Data $index: $temperature",
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                    )
+                )
+            }
         }
     }
 }
-
-//@Composable
-//fun InfoDialog(onChangeState: ()-> Unit) {
-//    Dialog(
-//        onDismissRequest = onChangeState
-//    ) {
-//        Column(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .padding(50.dp)
-//                .height(120.dp)
-//                .background(
-//                    Color.White,
-//                    shape = RoundedCornerShape(2.dp)
-//                ),
-//            verticalArrangement = Arrangement.SpaceBetween
-//
-//        ) {
-//            Text(
-//                modifier = Modifier.padding(5.dp),
-//                fontWeight = FontWeight.Bold,
-//                text =
-//                "- Service UUID" + "\n" +
-//                        "      Characteristic UUID"
-//
-//            )
-//            Button(
-//                modifier= Modifier.align(Alignment.CenterHorizontally),
-//                shape = RoundedCornerShape(2.dp),
-//                colors = ButtonDefaults.buttonColors(Color(0xFF1D8821)),
-//                onClick = onChangeState
-//            ) {
-//                Text(text = "Close")
-//            }
-//        }
-//    }
-//}
-
-
-
-
-//@SuppressLint("MissingPermission")
-//@Composable
-//fun ConnectButton(
-//    bleManager: BleManager,
-//    isConnecting: MutableState<Boolean>,
-//    deviceData: DeviceRoomData?
-//) {
-//    Row(
-//        Modifier
-//            .fillMaxWidth()
-//            .padding(top = 5.dp)
-//    ) {
-//        Button(
-//            modifier = Modifier
-//                .weight(1f)
-//                .padding(end = 2.dp),
-//            shape = RoundedCornerShape(2.dp),
-//            colors = ButtonDefaults.buttonColors(Color(0xFF1D8821)),
-//            enabled = !isConnecting.value,
-//            onClick = {
-////                bleManager.startBleConnectGatt(deviceData?: DeviceRoomData("", "", ""))
-//            }
-//        ) {
-//            Text(text = "Connect")
-//        }
-//        Button(
-//            modifier = Modifier
-//                .weight(1f)
-//                .padding(start = 2.dp),
-//            shape = RoundedCornerShape(2.dp),
-//            colors = ButtonDefaults.buttonColors(Color(0xFF1D8821)),
-//            enabled = isConnecting.value,
-//            onClick = { bleManager.bleGatt!!.disconnect() }
-//        ) {
-//            Text(text = "Disconnect")
-//        }
-//    }
-//}
 
 
 
