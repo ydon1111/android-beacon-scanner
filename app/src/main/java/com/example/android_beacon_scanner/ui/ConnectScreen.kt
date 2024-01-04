@@ -1,7 +1,6 @@
 package com.example.android_beacon_scanner.ui
 
 import android.annotation.SuppressLint
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,7 +15,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,10 +32,7 @@ import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateListOf
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 
 @SuppressLint("MissingPermission")
@@ -90,6 +85,36 @@ fun ConnectScreen(
 //        Log.d("ConnectScreen", "ACC_Z Values: $accZValues")
     }
 
+    // Function to parse the string into a list of floats
+    fun parseAccXValues(valueString: String): List<Float> {
+        val cleanString = valueString.replace("[", "").replace("]", "")
+        return cleanString.split(",").mapNotNull { it.trim().toFloatOrNull() }
+    }
+
+  fun parseDataString(dataString: String): List<Float> {
+        return dataString
+            .removeSurrounding("[", "]")
+            .split(",")
+            .mapNotNull { it.trim().toFloatOrNull() }
+    }
+
+    // Access the most recent values from the lists
+    val latestTemperature = temperatureList.lastOrNull() ?: "N/A"
+    val latestBleDataCount = bleDataCountList.lastOrNull() ?: "N/A"
+    val latestCurrentDateAndTime = currentDateAndTimeList.lastOrNull() ?: "N/A"
+
+
+    val latestAccXValues = accXValuesList.lastOrNull() ?: "N/A"
+    val latestAccYValues = accYValuesList.lastOrNull() ?: "N/A"
+    val latestAccZValues = accZValuesList.lastOrNull() ?: "N/A"
+
+
+    val accXs = parseDataString(latestAccXValues)
+    val accYs = parseDataString(latestAccYValues)
+    val accZs = parseDataString(latestAccZValues)
+
+
+
     bleManager.onConnectedStateObserve(object : BleInterface {
         override fun onConnectedStateObserve(isConnected: Boolean, data: String) {
             isConnecting.value = isConnected
@@ -132,14 +157,6 @@ fun ConnectScreen(
 
         val scroll = rememberScrollState(0)
 
-        // Access the most recent values from the lists
-        val latestTemperature = temperatureList.lastOrNull() ?: "N/A"
-        val latestBleDataCount = bleDataCountList.lastOrNull() ?: "N/A"
-        val latestCurrentDateAndTime = currentDateAndTimeList.lastOrNull() ?: "N/A"
-        val latestAccXValues = accXValuesList.lastOrNull() ?: "N/A"
-        val latestAccYValues = accYValuesList.lastOrNull() ?: "N/A"
-        val latestAccZValues = accZValuesList.lastOrNull() ?: "N/A"
-
 
         Column(
             modifier = Modifier
@@ -147,7 +164,7 @@ fun ConnectScreen(
                 .verticalScroll(scroll)
         ) {
             // Access and display temperature
-// Display the most recent values in your UI
+            // Display the most recent values in your UI
             Text(
                 text = "Latest Temperature: $latestTemperature",
                 style = TextStyle(
@@ -197,6 +214,7 @@ fun ConnectScreen(
                 )
             )
         }
+        LineChartGraph(accXs, accYs, accZs)
     }
 }
 
