@@ -1,18 +1,18 @@
 package com.example.android_beacon_scanner.room
 
 import android.content.Context
-import android.util.Log
-import androidx.room.AutoMigration
 import androidx.room.Database
-import androidx.room.Room
 import androidx.room.Room.databaseBuilder
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
+import com.example.android_beacon_scanner.util.Converter
 
 
 @Database(
     entities = [DeviceRoomDataEntity::class],
     version = 1
 )
+@TypeConverters(Converter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun deviceDataDao(): DeviceDataDao
 

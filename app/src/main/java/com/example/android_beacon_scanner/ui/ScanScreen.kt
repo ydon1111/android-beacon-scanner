@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -47,11 +48,8 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
 import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.R
-import com.example.android_beacon_scanner.room.DeviceDataRepository
-import com.example.android_beacon_scanner.room.DeviceRoomData
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
 import com.example.android_beacon_scanner.ui.theme.ScanItemTypography
-import kotlinx.coroutines.runBlocking
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -60,10 +58,11 @@ fun ScanScreen(navController: NavHostController, bleManager: BleManager) {
     val scanList = remember { mutableStateListOf<DeviceRoomDataEntity>() }
     val isScanning = remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+
+
     bleManager.setScanList(scanList)
 
-    // Observe the deviceData from ConnectScreen using navController
-    val deviceData = navController.currentBackStackEntry?.savedStateHandle?.get<DeviceRoomData>("deviceData")
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -71,6 +70,7 @@ fun ScanScreen(navController: NavHostController, bleManager: BleManager) {
         ScanButton(context,bleManager, isScanning)
         ScanList(navController, bleManager, scanList)
     }
+
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -126,15 +126,26 @@ fun ScanList(
 ) {
 
     val uniqueDeviceNames = scanList.distinctBy { it.deviceName }
+    val visibleDevices = rememberUpdatedState(uniqueDeviceNames) // Remember the list of visible devices
+
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
     ) {
         items(uniqueDeviceNames) { topic->
-            ScanItem(navController, bleManager, topic)
+            ScanItem(navController, topic)
         }
     }
+
+    // Check for devices that are no longer visible and remove them from scanList
+    LaunchedEffect(visibleDevices.value) {
+        val visibleDeviceNames = visibleDevices.value.map { it.deviceName }
+        val removedDevices = scanList.filterNot { it.deviceName in visibleDeviceNames }
+        scanList.removeAll(removedDevices)
+    }
+
+
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -143,7 +154,6 @@ fun ScanList(
 @Composable
 fun ScanItem(
     navController: NavHostController,
-    bleManager: BleManager,
     deviceData: DeviceRoomDataEntity,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -155,11 +165,8 @@ fun ScanItem(
         ),
         modifier = Modifier.padding(vertical = 4.dp),
         onClick = {
-//            bleManager.stopBleScan()
-            // Pass the deviceData to the ConnectScreen
-
-
             navController.currentBackStackEntry?.savedStateHandle?.set(key = "deviceData", value = deviceDataState.value)
+//            navController.currentBackStackEntry?.savedStateHandle?.set(key = "deviceData", value = deviceData)
             navController.navigate("ConnectScreen")
         }
     ) {

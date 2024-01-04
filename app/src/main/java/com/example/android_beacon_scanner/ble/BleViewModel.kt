@@ -4,7 +4,6 @@ package com.example.android_beacon_scanner.ble
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.android_beacon_scanner.room.DeviceDataRepository
-import com.example.android_beacon_scanner.room.DeviceRoomData
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -32,4 +31,7 @@ class BleViewModel @Inject constructor(
             deviceDataRepository.deleteAllDeviceData()
         }
     }
+
+
+
 }

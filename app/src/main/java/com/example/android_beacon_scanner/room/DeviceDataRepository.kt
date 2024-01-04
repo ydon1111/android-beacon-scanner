@@ -33,7 +33,8 @@ class DeviceDataRepository @Inject constructor(private val deviceDataDao: Device
             deviceDataDao.deleteAllDeviceData()
         }
     }
-
-
+    fun getDeviceDataFlow(deviceName: String): Flow<List<DeviceRoomDataEntity>> {
+        return deviceDataDao.getDeviceDataFlow(deviceName)
+    }
 
 }

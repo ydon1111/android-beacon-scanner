@@ -24,4 +24,7 @@ interface DeviceDataDao {
     @Query("SELECT * FROM device_data WHERE deviceName = :deviceName LIMIT 1")
     fun getDeviceData(deviceName: String): DeviceRoomDataEntity?
 
+    @Query("SELECT * FROM device_data WHERE deviceName = :deviceName")
+    fun getDeviceDataFlow(deviceName: String): Flow<List<DeviceRoomDataEntity>>
+
 }

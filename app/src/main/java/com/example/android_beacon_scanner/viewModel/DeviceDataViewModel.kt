@@ -4,7 +4,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
 import com.example.android_beacon_scanner.room.DeviceDataRepository
-import com.example.android_beacon_scanner.room.DeviceRoomData
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
 
 class DeviceDataViewModel(private val repository: DeviceDataRepository) : ViewModel() {
