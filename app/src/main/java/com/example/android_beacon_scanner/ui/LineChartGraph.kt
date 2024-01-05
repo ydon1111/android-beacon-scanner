@@ -1,21 +1,21 @@
 package com.example.android_beacon_scanner.ui
 
-import android.graphics.Color
-import android.util.Log
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.viewinterop.AndroidView
-import com.github.mikephil.charting.charts.LineChart
-import com.github.mikephil.charting.components.XAxis
-import com.github.mikephil.charting.components.YAxis
-import com.github.mikephil.charting.data.Entry
-import com.github.mikephil.charting.data.LineData
-import com.github.mikephil.charting.data.LineDataSet
-import com.github.mikephil.charting.interfaces.datasets.ILineDataSet
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.nativeCanvas
+import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
+import kotlin.math.min
 
 @Composable
 fun LineChartGraph(
@@ -23,66 +23,120 @@ fun LineChartGraph(
     accYValues: List<Float>,
     accZValues: List<Float>
 ) {
-    val lineChart = LineChart(LocalContext.current)
+    var accumulatedXData by remember { mutableStateOf(emptyList<Float>()) }
+    var accumulatedYData by remember { mutableStateOf(emptyList<Float>()) }
+    var accumulatedZData by remember { mutableStateOf(emptyList<Float>()) }
+    var currentIndex by remember { mutableStateOf(0) }
+    var drawXAxis by remember { mutableStateOf(true) } // X 축 그리기 여부를 나타내는 변수 추가
+    var maxDataPoints = 100 // 최대 데이터 포인트 수
 
-    Log.d("LineChartGraph", "accXValues: $accXValues")
-    Log.d("LineChartGraph", "accYValues: $accYValues")
-    Log.d("LineChartGraph", "accZValues: $accZValues")
+    val coroutineScope = rememberCoroutineScope()
 
-    // Create LineDataSet for each set of values
-    val dataSetX = createLineDataSet(accXValues, "ACC_X Values", Color.RED)
-    val dataSetY = createLineDataSet(accYValues, "ACC_Y Values", Color.GREEN)
-    val dataSetZ = createLineDataSet(accZValues, "ACC_Z Values", Color.BLUE)
+    LaunchedEffect(accXValues, accYValues, accZValues) {
+        while (true) {
+            if (currentIndex < minOf(accXValues.size, accYValues.size, accZValues.size)) {
+                val newXData = accXValues[currentIndex]
+                val newYData = accYValues[currentIndex]
+                val newZData = accZValues[currentIndex]
 
-    Log.d("LineChartGraph", "dataSetX entries: ${dataSetX.entryCount}")
-    Log.d("LineChartGraph", "dataSetY entries: ${dataSetY.entryCount}")
-    Log.d("LineChartGraph", "dataSetZ entries: ${dataSetZ.entryCount}")
+                accumulatedXData = accumulatedXData.takeLast(maxDataPoints - 1) + newXData
+                accumulatedYData = accumulatedYData.takeLast(maxDataPoints - 1) + newYData
+                accumulatedZData = accumulatedZData.takeLast(maxDataPoints - 1) + newZData
 
-    Log.d("LineChartGraph", "dataSetX: $dataSetX")
-    Log.d("LineChartGraph", "dataSetY: $dataSetY")
-    Log.d("LineChartGraph", "dataSetZ: $dataSetZ")
+                currentIndex++
+            } else {
+                // If all data has been processed, reset the index to start over.
+                currentIndex = 0
+            }
 
-    // Combine LineDataSets into LineData
-    val lineDataSets: List<ILineDataSet> = listOf(dataSetX, dataSetY, dataSetZ)
-    val lineData = LineData(lineDataSets)
+            // Delay for a specific interval (e.g., 1000 milliseconds)
+            delay(1000)
+        }
+    }
 
-    // Customize chart appearance
-    lineChart.data = lineData
-    lineChart.description.isEnabled = false
-    lineChart.setTouchEnabled(true)
-    lineChart.setPinchZoom(true)
+    Canvas(
+        modifier = Modifier.fillMaxSize(),
+        onDraw = {
+            val minYValue = -100f
+            val maxYValue = 100f
+            val numDataPoints = accumulatedXData.size
+            val scaleX = size.width / numDataPoints
+            val scaleY = size.height / (maxYValue - minYValue)
 
-    // Customize X-axis and Y-axis
-    val xAxis: XAxis = lineChart.xAxis
-    val yAxisLeft: YAxis = lineChart.axisLeft
-    val yAxisRight: YAxis = lineChart.axisRight
+            // Draw Y-axis label and ticks
+            val yTickInterval = (maxYValue - minYValue) / 10
+            val yTickStart = minYValue
+            val yTickEnd = maxYValue
+            val yTickStep = (yTickEnd - yTickStart) / 10
+            for (i in 0..10) {
+                val yTickValue = yTickStart + i * yTickStep
+                val yTickY = size.height - (i * size.height / 10)
 
-    xAxis.position = XAxis.XAxisPosition.BOTTOM
-    yAxisLeft.setDrawGridLines(false)
-    yAxisRight.isEnabled = false
+                // Adjust the position of the tick line and text to provide space
+                drawLine(
+                    start = Offset(40f, yTickY), // Adjust the x-coordinate for the tick line
+                    end = Offset(45f, yTickY),   // Adjust the x-coordinate for the tick line
+                    color = Color.Black,
+                    strokeWidth = 2f
+                )
 
-    // Add chart to the Composable
-    AndroidView(
-        { lineChart },
-        modifier = Modifier.fillMaxSize().size(400.dp, 400.dp) // Adjust the size as needed
+                val text = yTickValue.toString()
+                val textX = 30f   // Adjust the x-coordinate for the text
+                val textY = yTickY + 6 * density
+
+                val textStyle = TextStyle(
+                    fontSize = 12.sp, // Set your desired font size here
+                    color = Color.Black
+                )
+
+                drawIntoCanvas { canvas ->
+                    val paint = Paint().asFrameworkPaint()
+                    paint.textSize = 12 * density
+                    paint.color = Color.Black.toArgb()
+                    paint.isAntiAlias = true
+                    canvas.nativeCanvas.drawText(text, textX, textY, paint)
+                }
+            }
+
+            // Draw data lines
+            val startX = 130f // 시작 위치 조정
+            drawLineGraph(accumulatedXData, scaleX, scaleY, minYValue, Color.Red, startX)
+            drawLineGraph(accumulatedYData, scaleX, scaleY, minYValue, Color.Green, startX)
+            drawLineGraph(accumulatedZData, scaleX, scaleY, minYValue, Color.Blue, startX)
+        }
     )
 }
 
-private fun createLineDataSet(values: List<Float>, label: String, color: Int): LineDataSet {
-    Log.d("createLineDataSet", "Creating dataset for: $label")
-    Log.d("createLineDataSet", "Values: $values")
-    val entries = values.mapIndexed { index, value ->
-        Log.d("createLineDataSet", "Entry $index: x=$index, y=$value")
-        Entry(index.toFloat(), value)
+private fun DrawScope.drawLineGraph(
+    dataPoints: List<Float>,
+    scaleX: Float,
+    scaleY: Float,
+    minYValue: Float,
+    color: Color,
+    startX: Float // 수정된 부분: startX 추가
+) {
+    if (dataPoints.size < 2) return
+
+    val startY = (dataPoints[0] - minYValue) * scaleY
+    var previousX = startX // 시작 위치 설정
+    var previousY = startY
+
+    for (i in 1 until dataPoints.size) {
+        val x = startX + i.toFloat() * scaleX // x-축 위치 계산
+        val y = (dataPoints[i] - minYValue) * scaleY
+
+        drawLine(
+            start = Offset(previousX, previousY),
+            end = Offset(x, y),
+            color = color,
+            strokeWidth = 4f
+        )
+
+        previousX = x
+        previousY = y
     }
-
-    val dataSet = LineDataSet(entries, label)
-    dataSet.color = color
-    dataSet.setCircleColor(color)
-    dataSet.setDrawCircleHole(false)
-    dataSet.setDrawCircles(false)
-    dataSet.setDrawValues(false)
-    dataSet.setDrawFilled(true)
-
-    return dataSet
 }
+
+
+
+

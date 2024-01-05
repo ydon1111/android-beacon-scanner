@@ -97,9 +97,10 @@ dependencies {
 
     implementation 'com.google.code.gson:gson:2.10'
 
+    implementation "androidx.compose.ui:ui-geometry-android:1.5.4"
+
     //Chart
     implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
-
 }
 
 kapt {

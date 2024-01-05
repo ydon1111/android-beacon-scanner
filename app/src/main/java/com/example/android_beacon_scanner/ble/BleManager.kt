@@ -23,7 +23,6 @@ import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
 
-@Suppress("NAME_SHADOWING")
 @Singleton
 class BleManager @Inject constructor(
     private val context: Context,
@@ -39,9 +38,6 @@ class BleManager @Inject constructor(
 
     private var bleDataCount = 0
 
-
-
-
     private val scanCallback: ScanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -56,7 +52,7 @@ class BleManager @Inject constructor(
                     val manufacturerDataIntArray =
                         manufacturerDataValue?.map { it.toInt() }?.toIntArray()
 
-//                    Log.d("onScanResult", result.toString())
+                    Log.d("onScanResult", result.toString())
 //                    Log.d("manufacturerData", manufacturerDataIntArray.toString())
 
                     val uuid = result.scanRecord?.serviceUuids?.toString() ?: "null"

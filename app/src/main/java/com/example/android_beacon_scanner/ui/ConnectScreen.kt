@@ -1,6 +1,8 @@
 package com.example.android_beacon_scanner.ui
 
 import android.annotation.SuppressLint
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.Info
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -32,7 +35,10 @@ import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
+import java.io.File
+
 
 
 @SuppressLint("MissingPermission")
@@ -51,7 +57,6 @@ fun ConnectScreen(
     val allDeviceData = deviceDataRepository.getDeviceDataFlow(deviceData?.deviceName ?: "")
         .collectAsState(emptyList()).value
 
-
     // Access the values you want from the list of DeviceRoomDataEntity
     val temperatureList = mutableListOf<String>()
     val bleDataCountList = mutableListOf<String>()
@@ -60,6 +65,44 @@ fun ConnectScreen(
     val accYValuesList = mutableListOf<String>()
     val accZValuesList = mutableListOf<String>()
 
+    val context = LocalContext.current
+
+    var isSavingData by remember { mutableStateOf(false) }
+
+    if (isSavingData) {
+        // Get the data from RoomDB
+        val dataToSave = allDeviceData.map { deviceRoomDataEntity ->
+            // You can format the data as needed for CSV
+            "${deviceRoomDataEntity.currentDateAndTime},${deviceRoomDataEntity.temperature},${deviceRoomDataEntity.bleDataCount}"
+        }
+
+        // Define the CSV file path (change it as needed)
+        val csvFileName = "data.csv"
+
+        // Get the directory for saving files
+        val directory = context.getExternalFilesDir(null)
+
+        if (directory != null) {
+            val csvFilePath = File(directory, csvFileName)
+
+            // Save data to CSV file
+            try {
+                csvFilePath.writeText(dataToSave.joinToString("\n"))
+
+                // Reset the flag
+                isSavingData = false
+
+                // Show a toast message using the context
+                Toast.makeText(context, "Data saved to ${csvFilePath.absolutePath}", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("ConnectScreen", "Error saving data to CSV: ${e.message}")
+                // Handle the error as needed
+            }
+        } else {
+            Log.e("ConnectScreen", "External storage directory not found.")
+            // Handle the case where external storage directory is not available
+        }
+    }
 
     allDeviceData.forEach { data ->
         val temperature = data.temperature
@@ -115,6 +158,8 @@ fun ConnectScreen(
 
 
 
+
+
     bleManager.onConnectedStateObserve(object : BleInterface {
         override fun onConnectedStateObserve(isConnected: Boolean, data: String) {
             isConnecting.value = isConnected
@@ -142,16 +187,15 @@ fun ConnectScreen(
                     fontWeight = FontWeight.SemiBold
                 )
             )
-            IconButton(
+            Button(
                 onClick = {
-                    declarationDialogState = true
+                    isSavingData = true
                 },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.TwoTone.Info,
-                    tint = Color(0xFF1D8821),
-                    contentDescription = "inform"
-                )
+                Text(text = "Save Data to CSV")
             }
         }
 
@@ -214,6 +258,10 @@ fun ConnectScreen(
                 )
             )
         }
+
+//        Log.d("ConnectScreen", "accXs: $accXs")
+//        Log.d("ConnectScreen", "accYs: $accYs")
+//        Log.d("ConnectScreen", "accZs: $accZs")
         LineChartGraph(accXs, accYs, accZs)
     }
 }
