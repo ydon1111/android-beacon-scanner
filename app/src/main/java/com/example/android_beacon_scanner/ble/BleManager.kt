@@ -25,8 +25,7 @@ import javax.inject.Singleton
 
 @Singleton
 class BleManager @Inject constructor(
-    private val context: Context,
-    private val deviceDataRepository: DeviceDataRepository
+    private val context: Context, private val deviceDataRepository: DeviceDataRepository
 ) {
     private val bluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -132,9 +131,7 @@ class BleManager @Inject constructor(
     private val gattCallback = object : BluetoothGattCallback() {
         @SuppressLint("MissingPermission")
         override fun onConnectionStateChange(
-            gatt: BluetoothGatt?,
-            status: Int,
-            newState: Int
+            gatt: BluetoothGatt?, status: Int, newState: Int
         ) {
             super.onConnectionStateChange(gatt, status, newState)
 
@@ -142,14 +139,12 @@ class BleManager @Inject constructor(
                 Log.d("BleManager", "Connected")
                 gatt?.discoverServices()
                 connectedStateObserver?.onConnectedStateObserve(
-                    true,
-                    "Connected"
+                    true, "Connected"
                 )
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.d("BleManager", "Disconnected")
                 connectedStateObserver?.onConnectedStateObserve(
-                    false,
-                    "Disconnected"
+                    false, "Disconnected"
                 )
                 bleDataCount = 0
             }
@@ -163,9 +158,7 @@ class BleManager @Inject constructor(
                 MainScope().launch {
                     bleGatt = gatt
                     Toast.makeText(
-                        context,
-                        "Connected to ${gatt?.device?.name}",
-                        Toast.LENGTH_SHORT
+                        context, "Connected to ${gatt?.device?.name}", Toast.LENGTH_SHORT
                     ).show()
                     var sendText = "Services Discovered: GATT_SUCCESS\n"
 
@@ -179,8 +172,7 @@ class BleManager @Inject constructor(
                     }
                     sendText += "---"
                     connectedStateObserver?.onConnectedStateObserve(
-                        true,
-                        sendText
+                        true, sendText
                     )
 
                 }.cancel()
@@ -195,10 +187,9 @@ class BleManager @Inject constructor(
     fun startBleScan() {
         scanList?.clear()
 
-        val scanSettings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
-            .setLegacy(false)
-            .build()
+        val scanSettings =
+            ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).setLegacy(false)
+                .build()
         bluetoothLeScanner.startScan(null, scanSettings, scanCallback)
     }
 

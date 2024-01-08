@@ -11,9 +11,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,13 +35,15 @@ import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
+import kotlinx.coroutines.launch
 import java.io.File
 
 
 
-@SuppressLint("MissingPermission")
+@SuppressLint("MissingPermission", "CoroutineCreationDuringComposition")
 @Composable
 fun ConnectScreen(
     navController: NavHostController,
@@ -64,6 +71,25 @@ fun ConnectScreen(
     val context = LocalContext.current
 
     var isSavingData by remember { mutableStateOf(false) }
+
+    var isClearingData by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        if (isClearingData) {
+            // Delete all data from RoomDB immediately
+            try {
+                deviceDataRepository.deleteAllDeviceData()
+                Toast.makeText(context, "All data cleared from RoomDB", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("ConnectScreen", "Error clearing data from RoomDB: ${e.message}")
+                // Handle the error as needed
+            }
+
+            // Reset the flag
+            isClearingData = false
+        }
+    }
 
     if (isSavingData) {
         // Get the data from RoomDB
@@ -156,6 +182,21 @@ fun ConnectScreen(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            // 뒤로가기 버튼 추가
+            IconButton(
+                onClick = {
+                    // 뒤로가기 버튼 클릭 시 이전 화면으로 돌아가기
+                    navController.popBackStack()
+                },
+                modifier = Modifier
+                    .align(Alignment.CenterVertically)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back"
+                )
+            }
+
             Text(
                 modifier = Modifier.align(Alignment.CenterVertically),
                 text = deviceData?.deviceName ?: "Null",
