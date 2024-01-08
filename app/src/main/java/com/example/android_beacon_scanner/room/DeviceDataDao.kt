@@ -12,6 +12,7 @@ interface DeviceDataDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDeviceData(deviceRoomData: DeviceRoomDataEntity)
 
+
     @Query("DELETE FROM device_data")
     suspend fun deleteAllDeviceData()
 
@@ -26,5 +27,7 @@ interface DeviceDataDao {
 
     @Query("SELECT * FROM device_data WHERE deviceName = :deviceName")
     fun getDeviceDataFlow(deviceName: String): Flow<List<DeviceRoomDataEntity>>
+
+
 
 }

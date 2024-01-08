@@ -1,6 +1,7 @@
 package com.example.android_beacon_scanner.room
 
 import android.os.Parcelable
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
@@ -14,7 +15,6 @@ data class DeviceRoomDataEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val deviceName: String,
-    val serviceUuid: String,
     val deviceAddress: String,
     var manufacturerData: ByteArray?,
     var temperature: Int?,
@@ -22,10 +22,12 @@ data class DeviceRoomDataEntity(
 
     @TypeConverters(Converter::class)
     val currentDateAndTime: Date? = null,
-    @TypeConverters(Converter::class)
-    val accXValues: List<Int>?, // ACC_X_values를 리스트로 추가
-    @TypeConverters(Converter::class)
-    val accYValues: List<Int>?, // ACC_Y_values를 리스트로 추가
-    @TypeConverters(Converter::class)
-    val accZValues: List<Int>?  // ACC_Z_values를 리스트로 추가
-): Parcelable
+
+    @ColumnInfo(name = "value_x")
+    val valueX: Int?,
+    @ColumnInfo(name = "value_y")
+    val valueY: Int?,
+    @ColumnInfo(name = "value_z")
+    val valueZ: Int?
+
+) : Parcelable

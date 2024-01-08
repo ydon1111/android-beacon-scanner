@@ -14,14 +14,12 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
-import kotlin.math.min
 
 @Composable
 fun LineChartGraph(
-    accXValues: List<Float>,
-    accYValues: List<Float>,
-    accZValues: List<Float>
+    accXValues: MutableList<Int?>,
+    accYValues: MutableList<Int?>,
+    accZValues: MutableList<Int?>
 ) {
     var accumulatedXData by remember { mutableStateOf(emptyList<Float>()) }
     var accumulatedYData by remember { mutableStateOf(emptyList<Float>()) }
@@ -30,7 +28,6 @@ fun LineChartGraph(
     var drawXAxis by remember { mutableStateOf(true) } // X 축 그리기 여부를 나타내는 변수 추가
     var maxDataPoints = 100 // 최대 데이터 포인트 수
 
-    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(accXValues, accYValues, accZValues) {
         while (true) {
@@ -39,70 +36,78 @@ fun LineChartGraph(
                 val newYData = accYValues[currentIndex]
                 val newZData = accZValues[currentIndex]
 
-                accumulatedXData = accumulatedXData.takeLast(maxDataPoints - 1) + newXData
-                accumulatedYData = accumulatedYData.takeLast(maxDataPoints - 1) + newYData
-                accumulatedZData = accumulatedZData.takeLast(maxDataPoints - 1) + newZData
+                // Check for null values and convert them to 0.0 if necessary
+                val xData = newXData?.toFloat() ?: 0.0f
+                val yData = newYData?.toFloat() ?: 0.0f
+                val zData = newZData?.toFloat() ?: 0.0f
 
+                // Add new data at the end of the lists
+                accumulatedXData = (accumulatedXData + xData).takeLast(maxDataPoints)
+                accumulatedYData = (accumulatedYData + yData).takeLast(maxDataPoints)
+                accumulatedZData = (accumulatedZData + zData).takeLast(maxDataPoints)
                 currentIndex++
+
             } else {
                 // If all data has been processed, reset the index to start over.
                 currentIndex = 0
             }
 
-            // Delay for a specific interval (e.g., 1000 milliseconds)
-            delay(1000)
+            // Delay for a specific interval (e.g., 500 milliseconds)
+            delay(500)
         }
     }
 
     Canvas(
         modifier = Modifier.fillMaxSize(),
         onDraw = {
-            val minYValue = -100f
-            val maxYValue = 100f
-            val numDataPoints = accumulatedXData.size
-            val scaleX = size.width / numDataPoints
-            val scaleY = size.height / (maxYValue - minYValue)
+            if (accumulatedXData.isNotEmpty()) { // 데이터가 있는 경우에만 그래프 그리기
+                val minYValue = -100f
+                val maxYValue = 100f
+                val numDataPoints = accumulatedXData.size
+                val scaleX = size.width / numDataPoints
+                val scaleY = size.height / (maxYValue - minYValue)
 
-            // Draw Y-axis label and ticks
-            val yTickInterval = (maxYValue - minYValue) / 10
-            val yTickStart = minYValue
-            val yTickEnd = maxYValue
-            val yTickStep = (yTickEnd - yTickStart) / 10
-            for (i in 0..10) {
-                val yTickValue = yTickStart + i * yTickStep
-                val yTickY = size.height - (i * size.height / 10)
+                // Draw Y-axis label and ticks
+                val yTickInterval = (maxYValue - minYValue) / 10
+                val yTickStart = minYValue
+                val yTickEnd = maxYValue
+                val yTickStep = (yTickEnd - yTickStart) / 10
+                for (i in 0..10) {
+                    val yTickValue = yTickStart + i * yTickStep
+                    val yTickY = size.height - (i * size.height / 10)
 
-                // Adjust the position of the tick line and text to provide space
-                drawLine(
-                    start = Offset(40f, yTickY), // Adjust the x-coordinate for the tick line
-                    end = Offset(45f, yTickY),   // Adjust the x-coordinate for the tick line
-                    color = Color.Black,
-                    strokeWidth = 2f
-                )
+                    // Adjust the position of the tick line and text to provide space
+                    drawLine(
+                        start = Offset(40f, yTickY), // Adjust the x-coordinate for the tick line
+                        end = Offset(45f, yTickY),   // Adjust the x-coordinate for the tick line
+                        color = Color.Black,
+                        strokeWidth = 2f
+                    )
 
-                val text = yTickValue.toString()
-                val textX = 30f   // Adjust the x-coordinate for the text
-                val textY = yTickY + 6 * density
+                    val text = yTickValue.toString()
+                    val textX = 30f   // Adjust the x-coordinate for the text
+                    val textY = yTickY + 6 * density
 
-                val textStyle = TextStyle(
-                    fontSize = 12.sp, // Set your desired font size here
-                    color = Color.Black
-                )
+                    val textStyle = TextStyle(
+                        fontSize = 12.sp, // Set your desired font size here
+                        color = Color.Black
+                    )
 
-                drawIntoCanvas { canvas ->
-                    val paint = Paint().asFrameworkPaint()
-                    paint.textSize = 12 * density
-                    paint.color = Color.Black.toArgb()
-                    paint.isAntiAlias = true
-                    canvas.nativeCanvas.drawText(text, textX, textY, paint)
+                    drawIntoCanvas { canvas ->
+                        val paint = Paint().asFrameworkPaint()
+                        paint.textSize = 12 * density
+                        paint.color = Color.Black.toArgb()
+                        paint.isAntiAlias = true
+                        canvas.nativeCanvas.drawText(text, textX, textY, paint)
+                    }
                 }
-            }
 
-            // Draw data lines
-            val startX = 130f // 시작 위치 조정
-            drawLineGraph(accumulatedXData, scaleX, scaleY, minYValue, Color.Red, startX)
-            drawLineGraph(accumulatedYData, scaleX, scaleY, minYValue, Color.Green, startX)
-            drawLineGraph(accumulatedZData, scaleX, scaleY, minYValue, Color.Blue, startX)
+                // Draw data lines
+                val startX = 130f // 시작 위치 조정
+                drawLineGraph(accumulatedXData, scaleX, scaleY, minYValue, Color.Red, startX)
+                drawLineGraph(accumulatedYData, scaleX, scaleY, minYValue, Color.Green, startX)
+                drawLineGraph(accumulatedZData, scaleX, scaleY, minYValue, Color.Blue, startX)
+            }
         }
     )
 }

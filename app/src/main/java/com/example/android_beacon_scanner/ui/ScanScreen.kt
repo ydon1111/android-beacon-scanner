@@ -166,7 +166,6 @@ fun ScanItem(
         modifier = Modifier.padding(vertical = 4.dp),
         onClick = {
             navController.currentBackStackEntry?.savedStateHandle?.set(key = "deviceData", value = deviceDataState.value)
-//            navController.currentBackStackEntry?.savedStateHandle?.set(key = "deviceData", value = deviceData)
             navController.navigate("ConnectScreen")
         }
     ) {
@@ -180,7 +179,10 @@ fun ScanItem(
 
                 if(expanded) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "UUID\n>> ${deviceData.serviceUuid}", style = ScanItemTypography.bodySmall)
+                    Text(
+                        text = "Temperature\n>> ${deviceData.temperature ?: "N/A"}", // 온도가 null인 경우 "N/A"로 표시
+                        style = ScanItemTypography.bodySmall
+                    )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(text = "Address\n>> ${deviceData.deviceAddress}", style = ScanItemTypography.bodySmall)
                     Spacer(modifier = Modifier.height(2.dp))

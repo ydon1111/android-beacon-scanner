@@ -46,16 +46,12 @@ class BleManager @Inject constructor(
                 val manufacturerData = result.scanRecord?.manufacturerSpecificData
                 if (manufacturerData != null && manufacturerData.containsKey(16505)) {
 
-                    bleDataCount++
-
                     val manufacturerDataValue = manufacturerData[16505]
                     val manufacturerDataIntArray =
                         manufacturerDataValue?.map { it.toInt() }?.toIntArray()
 
                     Log.d("onScanResult", result.toString())
 //                    Log.d("manufacturerData", manufacturerDataIntArray.toString())
-
-                    val uuid = result.scanRecord?.serviceUuids?.toString() ?: "null"
 
                     val temperature = manufacturerDataIntArray?.let {
                         if (it.size >= 2) {
@@ -67,69 +63,62 @@ class BleManager @Inject constructor(
 
 //                    Log.d("BleManager", "temperature: ${temperature?.toString() ?: "null"}")
 
-                    val ACC_X_values = mutableListOf<Int>()
-                    val ACC_Y_values = mutableListOf<Int>()
-                    val ACC_Z_values = mutableListOf<Int>()
-
                     val startIndex = 0  // 시작 인덱스
                     val step = 12       // 간격
                     val count = 18      // 추출할 값의 개수
+
+                    val currentDateAndTime = Date()
 
                     for (i in 0 until count) {
                         val indexX = startIndex + i * step
                         val indexY = (startIndex + 2) + i * step
                         val indexZ = (startIndex + 4) + i * step
 
-                        val valueX = if (indexX < manufacturerDataIntArray?.size ?: 0) {
+                        val valueX = if (indexX < (manufacturerDataIntArray?.size ?: 0)) {
                             manufacturerDataIntArray?.get(indexX) ?: 0
                         } else {
                             0
                         }
 
-                        val valueY = if (indexY < manufacturerDataIntArray?.size ?: 0) {
+                        val valueY = if (indexY < (manufacturerDataIntArray?.size ?: 0)) {
                             manufacturerDataIntArray?.get(indexY) ?: 0
                         } else {
                             0
                         }
 
-                        val valueZ = if (indexZ < manufacturerDataIntArray?.size ?: 0) {
+                        val valueZ = if (indexZ < (manufacturerDataIntArray?.size ?: 0)) {
                             manufacturerDataIntArray?.get(indexZ) ?: 0
                         } else {
                             0
                         }
+
+                        // 데이터베이스에 값 넣기
+
+                        val scanItem = DeviceRoomDataEntity(
+                            deviceName = deviceName,
+                            deviceAddress = result.device.address ?: "null",
+                            manufacturerData = manufacturerData[16505],
+                            temperature = temperature,
+                            bleDataCount = bleDataCount, // 현재 i를 사용하여 0부터 17까지 증가
+                            currentDateAndTime = currentDateAndTime,
+                            valueX = valueX,
+                            valueY = valueY,
+                            valueZ = valueZ
+                        )
+
+                        MainScope().launch {
+                            deviceDataRepository.insertDeviceData(scanItem)
+                            Log.d("BleManager", "Inserted data into Room database: $scanItem")
+                        }
+                        scanList?.add(scanItem)
 
                         // 추출된 값들을 로그로 출력
 //                        Log.d("ACC_X", "Value $i: $valueX")
 //                        Log.d("ACC_Y", "Value $i: $valueY")
 //                        Log.d("ACC_Z", "Value $i: $valueZ")
 
-                        ACC_X_values.add(valueX)
-                        ACC_Y_values.add(valueY)
-                        ACC_Z_values.add(valueZ)
                     }
-
-                    val currentDateAndTime = Date()
-
-
-                    val scanItem = DeviceRoomDataEntity(
-                        deviceName = deviceName,
-                        serviceUuid = uuid,
-                        deviceAddress = result.device.address ?: "null",
-                        manufacturerData = manufacturerData[16505],
-                        temperature = temperature,
-                        accXValues = ACC_X_values,
-                        accYValues = ACC_Y_values,
-                        accZValues = ACC_Z_values,
-                        bleDataCount = bleDataCount,
-                        currentDateAndTime = currentDateAndTime
-                    )
-
-                    // Insert the scan result into the Room database
-                    MainScope().launch {
-                        deviceDataRepository.insertDeviceData(scanItem)
-                        Log.d("BleManager", "Inserted data into Room database: $scanItem")
-                    }
-                    scanList?.add(scanItem)
+                    bleDataCount++
                 }
             }
         }

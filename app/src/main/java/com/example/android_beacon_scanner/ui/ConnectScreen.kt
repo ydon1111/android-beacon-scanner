@@ -11,11 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.twotone.Info
 import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,7 +20,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -61,9 +56,10 @@ fun ConnectScreen(
     val temperatureList = mutableListOf<String>()
     val bleDataCountList = mutableListOf<String>()
     val currentDateAndTimeList = mutableListOf<String>()
-    val accXValuesList = mutableListOf<String>()
-    val accYValuesList = mutableListOf<String>()
-    val accZValuesList = mutableListOf<String>()
+    val accXValuesList = mutableListOf<Int?>()
+    val accYValuesList = mutableListOf<Int?>()
+    val accZValuesList = mutableListOf<Int?>()
+
 
     val context = LocalContext.current
 
@@ -108,17 +104,17 @@ fun ConnectScreen(
         val temperature = data.temperature
         val bleDataCount = data.bleDataCount
         val currentDateAndTime = data.currentDateAndTime
-        val accXValues = data.accXValues
-        val accYValues = data.accYValues
-        val accZValues = data.accZValues
+
 
         // Add the values to their respective lists
         temperatureList.add(temperature.toString())
         bleDataCountList.add(bleDataCount.toString())
         currentDateAndTimeList.add(currentDateAndTime.toString())
-        accXValuesList.add(accXValues.toString())
-        accYValuesList.add(accYValues.toString())
-        accZValuesList.add(accZValues.toString())
+
+        // Collect accX, accY, and accZ values from the RoomDB
+        accXValuesList.add(data.valueX)
+        accYValuesList.add(data.valueY)
+        accZValuesList.add(data.valueZ)
 
 //        // You can use these values to update your UI or perform other actions
 //        Log.d("ConnectScreen", "Temperature: $temperature, BLE Data Count: $bleDataCount")
@@ -128,33 +124,12 @@ fun ConnectScreen(
 //        Log.d("ConnectScreen", "ACC_Z Values: $accZValues")
     }
 
-    // Function to parse the string into a list of floats
-    fun parseAccXValues(valueString: String): List<Float> {
-        val cleanString = valueString.replace("[", "").replace("]", "")
-        return cleanString.split(",").mapNotNull { it.trim().toFloatOrNull() }
-    }
 
-  fun parseDataString(dataString: String): List<Float> {
-        return dataString
-            .removeSurrounding("[", "]")
-            .split(",")
-            .mapNotNull { it.trim().toFloatOrNull() }
-    }
 
     // Access the most recent values from the lists
     val latestTemperature = temperatureList.lastOrNull() ?: "N/A"
     val latestBleDataCount = bleDataCountList.lastOrNull() ?: "N/A"
     val latestCurrentDateAndTime = currentDateAndTimeList.lastOrNull() ?: "N/A"
-
-
-    val latestAccXValues = accXValuesList.lastOrNull() ?: "N/A"
-    val latestAccYValues = accYValuesList.lastOrNull() ?: "N/A"
-    val latestAccZValues = accZValuesList.lastOrNull() ?: "N/A"
-
-
-    val accXs = parseDataString(latestAccXValues)
-    val accYs = parseDataString(latestAccYValues)
-    val accZs = parseDataString(latestAccZValues)
 
 
 
@@ -170,6 +145,8 @@ fun ConnectScreen(
     var declarationDialogState by remember {
         mutableStateOf(false)
     }
+
+
     Column(
         Modifier
             .fillMaxSize()
@@ -231,27 +208,6 @@ fun ConnectScreen(
             )
 
             Text(
-                text = "Latest ACC_X Values: $latestAccXValues",
-                style = TextStyle(
-                    fontSize = 14.sp,
-                )
-            )
-
-            Text(
-                text = "Latest ACC_Y Values: $latestAccYValues",
-                style = TextStyle(
-                    fontSize = 14.sp,
-                )
-            )
-
-            Text(
-                text = "Latest ACC_Z Values: $latestAccZValues",
-                style = TextStyle(
-                    fontSize = 14.sp,
-                )
-            )
-
-            Text(
                 text = connectedData.value,
                 style = TextStyle(
                     fontSize = 14.sp,
@@ -262,7 +218,7 @@ fun ConnectScreen(
 //        Log.d("ConnectScreen", "accXs: $accXs")
 //        Log.d("ConnectScreen", "accYs: $accYs")
 //        Log.d("ConnectScreen", "accZs: $accZs")
-        LineChartGraph(accXs, accYs, accZs)
+        LineChartGraph(accXValuesList, accYValuesList, accZValuesList)
     }
 }
 
