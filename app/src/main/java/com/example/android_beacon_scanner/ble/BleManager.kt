@@ -18,12 +18,12 @@ import androidx.core.util.containsKey
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -82,6 +82,8 @@ class BleManager @Inject constructor(
                     val count = 18      // 추출할 값의 개수
 
                     val currentDateAndTime = Date()
+                    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    val formattedDate = dateFormat.format(currentDateAndTime)
 
                     for (i in 0 until count) {
                         val indexX = startIndex + i * step
@@ -113,23 +115,21 @@ class BleManager @Inject constructor(
                             manufacturerData = manufacturerData[16505],
                             temperature = temperature,
                             bleDataCount = bleDataCount, // 현재 i를 사용하여 0부터 17까지 증가
-                            currentDateAndTime = currentDateAndTime,
+                            currentDateAndTime = formattedDate,
                             valueX = valueX,
                             valueY = valueY,
                             valueZ = valueZ
                         )
 
-                        MainScope().launch {
+                        MainScope().launch(Dispatchers.IO) {
                             deviceDataRepository.insertDeviceData(scanItem)
                             Log.d("BleManager", "Inserted data into Room database: $scanItem")
                         }
                         scanList?.add(scanItem)
-
                         // 추출된 값들을 로그로 출력
 //                        Log.d("ACC_X", "Value $i: $valueX")
 //                        Log.d("ACC_Y", "Value $i: $valueY")
 //                        Log.d("ACC_Z", "Value $i: $valueZ")
-
                     }
                     bleDataCount++
                 }
@@ -191,14 +191,14 @@ class BleManager @Inject constructor(
 
                     // 연결된 장치 정보를 저장
                     connectedDevice?.let {
-                        insertDeviceDataIfNotExists(it)
-                    }
+                        MainScope().launch(Dispatchers.IO) {
+                            insertDeviceDataIfNotExists(it)
+                        }
 
-                }.cancel()
+                    }!!.cancel()
+                }
             }
         }
-
-
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -239,41 +239,16 @@ class BleManager @Inject constructor(
         return deviceDataRepository.isDeviceDataExists(deviceAddress)
     }
 
-    @SuppressLint("MissingPermission")
-    private suspend fun insertDeviceDataIfNotExists(deviceData: DeviceRoomDataEntity) {
-        val deviceAddress = deviceData.deviceAddress
-        if (!isDeviceDataExists(deviceAddress)) {
-            withContext(Dispatchers.Default) {
+        private suspend fun insertDeviceDataIfNotExists(deviceData: DeviceRoomDataEntity) {
+            val deviceAddress = deviceData.deviceAddress
+            if (!isDeviceDataExists(deviceAddress)) {
                 deviceDataRepository.insertDeviceData(deviceData)
             }
         }
     }
 
 
-    private var job: Job? = null
 
-    fun startScanningInBackground() {
-        job = MainScope().launch {
-            while (true) {
-                // 스캔 작업 및 데이터베이스 작업 수행
-                scanAndStoreDataToDatabase()
-                delay(5000) // 5초마다 작업을 반복
-            }
-        }
-    }
-
-    fun stopScanningInBackground() {
-        job?.cancel()
-    }
-
-    private suspend fun scanAndStoreDataToDatabase() {
-
-        // 스캔 작업 및 데이터베이스 작업 수행
-        // 결과를 데이터베이스에 추가
-    }
-
-
-}
 
 
 

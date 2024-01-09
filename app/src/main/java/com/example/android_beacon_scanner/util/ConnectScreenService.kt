@@ -10,36 +10,66 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
+import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.R
+import com.example.android_beacon_scanner.room.DeviceDataRepository
 
 
 class ConnectScreenService : Service() {
 
     private val CHANNEL_ID = "ConnectScreenServiceChannel"
     private val NOTIFICATION_ID = 1
+    private var bleManager: BleManager? = null
+    private lateinit var deviceDataRepository: DeviceDataRepository
+    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
+        deviceDataRepository = DeviceDataRepository.getInstance(applicationContext)
+        bleManager = BleManager(applicationContext, deviceDataRepository)
     }
 
-    @SuppressLint("ForegroundServiceType")
+    @SuppressLint("ForegroundServiceType", "WakelockTimeout")
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Foreground Service를 시작합니다.
+        Log.d("ConnectScreenService", "onStartCommand called")
+
+
+
+        // Foreground Service with ongoing notification
         val notification = createNotification()
         startForeground(NOTIFICATION_ID, notification)
 
-        // 여기에서 앱의 백그라운드 작업을 수행할 수 있습니다.
-        // 화면이 꺼져도 계속 동작합니다.
+        // Acquire wake lock
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "ConnectScreenService::WakeLock"
+        )
+        wakeLock?.acquire()
+
+        // Initialize and start BLE scanning
+        val bleManager = BleManager(applicationContext, deviceDataRepository)
+        bleManager.startBleScan()
+
+        // Log that the service has started
+        Log.d("ConnectScreenService", "Service started")
 
         return START_STICKY
     }
 
+
     override fun onDestroy() {
         super.onDestroy()
 
-        // 서비스가 종료될 때 필요한 정리 작업을 수행합니다.
+        // Release wake lock
+        wakeLock?.release()
+
+        // Log that the service has been destroyed
+        Log.d("ConnectScreenService", "Service destroyed")
     }
 
     override fun onBind(intent: Intent?): IBinder? {
@@ -56,7 +86,8 @@ class ConnectScreenService : Service() {
         return NotificationCompat.Builder(this, notificationChannelId)
             .setContentTitle("ConnectScreenService")
             .setContentText("App is running in the background")
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_launcher_background)
+            .setOngoing(true)  // This makes the notification ongoing
             .build()
     }
 
@@ -64,7 +95,11 @@ class ConnectScreenService : Service() {
     private fun createNotificationChannel(): String {
         val channelId = "ConnectScreenServiceChannel"
         val channelName = "ConnectScreenService"
-        val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_DEFAULT)
+        val channel = NotificationChannel(
+            channelId,
+            channelName,
+            NotificationManager.IMPORTANCE_DEFAULT
+        )
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.createNotificationChannel(channel)
         return channelId

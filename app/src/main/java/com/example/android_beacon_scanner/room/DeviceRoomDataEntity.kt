@@ -7,7 +7,6 @@ import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
 import com.example.android_beacon_scanner.util.Converter
 import kotlinx.parcelize.Parcelize
-import java.util.Date
 
 @Entity(tableName = "device_data")
 @Parcelize
@@ -21,7 +20,7 @@ data class DeviceRoomDataEntity(
     var bleDataCount: Int?,
 
     @TypeConverters(Converter::class)
-    val currentDateAndTime: Date? = null,
+    val currentDateAndTime: String? = null,
 
     @ColumnInfo(name = "value_x")
     val valueX: Int?,

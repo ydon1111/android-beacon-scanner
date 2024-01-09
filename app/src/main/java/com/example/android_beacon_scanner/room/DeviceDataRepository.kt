@@ -1,5 +1,6 @@
 package com.example.android_beacon_scanner.room
 
+import android.content.Context
 import androidx.lifecycle.distinctUntilChanged
 import kotlinx.coroutines.Dispatchers
 import javax.inject.Inject
@@ -61,6 +62,21 @@ class DeviceDataRepository @Inject constructor(private val deviceDataDao: Device
         bleCount: Int
     ): List<DeviceRoomDataEntity> {
         return deviceDataDao.getDeviceDataWithBleCountGreaterOrEqual(deviceName, bleCount)
+    }
+    companion object {
+        private var instance: DeviceDataRepository? = null
+
+        fun getInstance(applicationContext: Context): DeviceDataRepository {
+            return instance ?: synchronized(this) {
+                instance ?: createInstance(applicationContext).also { instance = it }
+            }
+        }
+
+        private fun createInstance(applicationContext: Context): DeviceDataRepository {
+            val appDatabase = AppDatabase.getInstance(applicationContext)
+            val deviceDataDao = appDatabase!!.deviceDataDao()
+            return DeviceDataRepository(deviceDataDao)
+        }
     }
 
 }
