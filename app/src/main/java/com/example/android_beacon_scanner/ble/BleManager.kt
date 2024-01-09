@@ -17,8 +17,12 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.core.util.containsKey
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -73,7 +77,6 @@ class BleManager @Inject constructor(
                     }
 
 //                    Log.d("BleManager", "temperature: ${temperature?.toString() ?: "null"}")
-
                     val startIndex = 0  // 시작 인덱스
                     val step = 12       // 간격
                     val count = 18      // 추출할 값의 개수
@@ -104,7 +107,6 @@ class BleManager @Inject constructor(
                         }
 
                         // 데이터베이스에 값 넣기
-
                         val scanItem = DeviceRoomDataEntity(
                             deviceName = deviceName,
                             deviceAddress = result.device.address ?: "null",
@@ -241,8 +243,33 @@ class BleManager @Inject constructor(
     private suspend fun insertDeviceDataIfNotExists(deviceData: DeviceRoomDataEntity) {
         val deviceAddress = deviceData.deviceAddress
         if (!isDeviceDataExists(deviceAddress)) {
-            deviceDataRepository.insertDeviceData(deviceData)
+            withContext(Dispatchers.Default) {
+                deviceDataRepository.insertDeviceData(deviceData)
+            }
         }
+    }
+
+
+    private var job: Job? = null
+
+    fun startScanningInBackground() {
+        job = MainScope().launch {
+            while (true) {
+                // 스캔 작업 및 데이터베이스 작업 수행
+                scanAndStoreDataToDatabase()
+                delay(5000) // 5초마다 작업을 반복
+            }
+        }
+    }
+
+    fun stopScanningInBackground() {
+        job?.cancel()
+    }
+
+    private suspend fun scanAndStoreDataToDatabase() {
+
+        // 스캔 작업 및 데이터베이스 작업 수행
+        // 결과를 데이터베이스에 추가
     }
 
 

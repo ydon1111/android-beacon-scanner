@@ -59,10 +59,7 @@ fun ScanScreen(navController: NavHostController, bleManager: BleManager) {
     val isScanning = remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-
-
     bleManager.setScanList(scanList)
-
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -70,7 +67,6 @@ fun ScanScreen(navController: NavHostController, bleManager: BleManager) {
         ScanButton(context,bleManager, isScanning)
         ScanList(navController, bleManager, scanList)
     }
-
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -234,7 +230,8 @@ private val permissionArray = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
         Manifest.permission.BLUETOOTH_ADVERTISE, // Add Bluetooth Advertise permission
         Manifest.permission.ACCESS_COARSE_LOCATION,
         Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.WRITE_EXTERNAL_STORAGE // Add WRITE_EXTERNAL_STORAGE permission
+        Manifest.permission.WRITE_EXTERNAL_STORAGE, // Add WRITE_EXTERNAL_STORAGE permission
+
     )
 } else {
     arrayOf(

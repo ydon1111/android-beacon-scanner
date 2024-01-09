@@ -1,10 +1,7 @@
 package com.example.android_beacon_scanner.ui
 
 import android.annotation.SuppressLint
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.Context
-import android.os.Build
+import android.content.Intent
 import android.os.Environment
 import android.util.Log
 import android.widget.Toast
@@ -38,11 +35,8 @@ import com.example.android_beacon_scanner.room.DeviceDataRepository
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat.getSystemService
-import com.example.android_beacon_scanner.R
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
+import com.example.android_beacon_scanner.util.ConnectScreenService
 import kotlinx.coroutines.launch
 import java.io.FileWriter
 import java.text.SimpleDateFormat
@@ -66,9 +60,16 @@ fun ConnectScreen(
         mutableStateOf<DeviceRoomDataEntity?>(null)
     }
 
+// Start the ConnectScreenService when needed
+    val context = LocalContext.current
+    val startServiceIntent = Intent(context, ConnectScreenService::class.java)
+    context.startService(startServiceIntent)
+
+
     LaunchedEffect(deviceData?.deviceName) {
         Log.d("ConnectScreen", "LaunchedEffect started")
-        val latestDataFlow = deviceDataRepository.observeLatestDeviceData(deviceData?.deviceName ?: "")
+        val latestDataFlow =
+            deviceDataRepository.observeLatestDeviceData(deviceData?.deviceName ?: "")
         latestDataFlow.collect { updatedDeviceData ->
             Log.d("ConnectScreen", "Latest data received: $updatedDeviceData")
             latestDeviceData = updatedDeviceData
@@ -94,16 +95,16 @@ fun ConnectScreen(
         }
     })
 
-    var startBleCount by remember { mutableStateOf(0) }
-
     // Create a coroutine scope
     val coroutineScope = rememberCoroutineScope()
 
     var showToast by remember { mutableStateOf(false) }
 
     fun exportDataToCsv(dataToExport: List<DeviceRoomDataEntity>) {
-        val currentTime = SimpleDateFormat("yyyy_MM_dd_HH.mm.ss", Locale.getDefault()).format(Date())
-        val filePath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)?.absolutePath + "/$currentTime.csv"
+        val currentTime =
+            SimpleDateFormat("yyyy_MM_dd_HH.mm.ss", Locale.getDefault()).format(Date())
+        val filePath =
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)?.absolutePath + "/$currentTime.csv"
 
         // Open a file writer
         val fileWriter = FileWriter(filePath)
@@ -144,10 +145,11 @@ fun ConnectScreen(
                 onClick = {
                     // When the button is pressed, fetch all data from 0 to the current count
                     coroutineScope.launch {
-                        val dataToExport = deviceDataRepository.getDeviceDataWithBleCountGreaterOrEqual(
-                            deviceData?.deviceName ?: "",
-                            0 // Start from 0
-                        )
+                        val dataToExport =
+                            deviceDataRepository.getDeviceDataWithBleCountGreaterOrEqual(
+                                deviceData?.deviceName ?: "",
+                                0 // Start from 0
+                            )
 
                         // Export data to CSV file
                         if (dataToExport.isNotEmpty()) {

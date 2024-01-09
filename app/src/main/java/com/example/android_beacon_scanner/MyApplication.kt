@@ -3,6 +3,7 @@ package com.example.android_beacon_scanner
 import android.app.AlertDialog
 import android.app.Application
 import android.content.Context
+import android.os.PowerManager
 import android.util.Log
 import androidx.lifecycle.ViewModelProvider
 import androidx.room.Room
@@ -22,8 +23,12 @@ import javax.inject.Inject
 @HiltAndroidApp
 class MyApplication : Application() {
 
+    private var wakeLock: PowerManager.WakeLock? = null
     override fun onCreate() {
         super.onCreate()
+        initializeWakeLock()
+
+
 
         try {
             // Initialize the Room database instance
@@ -62,5 +67,29 @@ class MyApplication : Application() {
             }
             .setCancelable(false)
             .show()
+    }
+
+    // 필요한 경우 WakeLock을 릴리스하는 메서드
+    private fun releaseWakeLock() {
+        wakeLock?.let {
+            if (it.isHeld) {
+                it.release()
+            }
+        }
+    }
+
+    override fun onTerminate() {
+        // 앱 종료 시 WakeLock을 릴리스
+        releaseWakeLock()
+        super.onTerminate()
+    }
+
+    private fun initializeWakeLock() {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "MyApp::MyWakeLockTag"
+        )
+        wakeLock?.acquire()
     }
 }

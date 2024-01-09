@@ -1,6 +1,7 @@
 package com.example.android_beacon_scanner
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -23,6 +24,7 @@ import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.ui.ConnectScreen
 import com.example.android_beacon_scanner.ui.ScanScreen
 import com.example.android_beacon_scanner.ui.theme.AndroidbeaconscannerTheme
+import com.example.android_beacon_scanner.util.ConnectScreenService
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -34,7 +36,6 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var deviceDataRepository: DeviceDataRepository // DeviceDataRepository 주입
-
 
 
     // onCreate 메서드
@@ -79,6 +80,17 @@ class MainActivity : ComponentActivity() {
                 requestPermissionLauncher.launch(permissionArray)
             }
         }
+
+        startForegroundServiceIfNeeded()
+    }
+
+    private fun startForegroundServiceIfNeeded() {
+        val serviceIntent = Intent(this, ConnectScreenService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
     }
 
 
@@ -87,12 +99,14 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.BLUETOOTH_SCAN,
             Manifest.permission.BLUETOOTH_CONNECT,
             Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.POST_NOTIFICATIONS
         )
     } else {
         arrayOf(
             Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.POST_NOTIFICATIONS
         )
     }
 
