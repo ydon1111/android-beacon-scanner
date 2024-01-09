@@ -38,6 +38,18 @@ class BleManager @Inject constructor(
 
     private var bleDataCount = 0
 
+    private var connectedDevice: DeviceRoomDataEntity? = null
+
+    fun setConnectedDevice(deviceData: DeviceRoomDataEntity) {
+        connectedDevice = deviceData
+    }
+
+    // 현재 연결된 BLE 장치를 반환하는 메서드 추가
+    fun getConnectedDevice(): DeviceRoomDataEntity? {
+        return connectedDevice
+    }
+
+
     private val scanCallback: ScanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -183,6 +195,11 @@ class BleManager @Inject constructor(
                         sendText
                     )
 
+                    // 연결된 장치 정보를 저장
+                    connectedDevice?.let {
+                        insertDeviceDataIfNotExists(it)
+                    }
+
                 }.cancel()
             }
         }
@@ -208,9 +225,12 @@ class BleManager @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    fun startBleConnectGatt(deviceData: DeviceRoomDataEntity) {
+    suspend fun startBleConnectGatt(deviceData: DeviceRoomDataEntity) {
         bluetoothAdapter.getRemoteDevice(deviceData.deviceAddress)
             .connectGatt(context, false, gattCallback)
+
+        // Insert the data into the database when connecting to the device
+        insertDeviceDataIfNotExists(deviceData)
     }
 
     fun setScanList(pScanList: SnapshotStateList<DeviceRoomDataEntity>) {
@@ -233,6 +253,8 @@ class BleManager @Inject constructor(
             deviceDataRepository.insertDeviceData(deviceData)
         }
     }
+
+
 }
 
 

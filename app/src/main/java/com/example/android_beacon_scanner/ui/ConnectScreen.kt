@@ -1,6 +1,11 @@
 package com.example.android_beacon_scanner.ui
 
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
+import android.os.Environment
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,14 +35,22 @@ import com.example.android_beacon_scanner.BleInterface
 import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat.getSystemService
+import com.example.android_beacon_scanner.R
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
-import java.io.File
+import kotlinx.coroutines.launch
+import java.io.FileWriter
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 
-
-@SuppressLint("MissingPermission")
+@SuppressLint("MissingPermission", "MutableCollectionMutableState")
 @Composable
 fun ConnectScreen(
     navController: NavHostController,
@@ -48,92 +62,30 @@ fun ConnectScreen(
     val isConnecting = remember { mutableStateOf(false) }
     val connectedData = remember { mutableStateOf("") }
 
-    // Collect the data based on the deviceName
-    val allDeviceData = deviceDataRepository.getDeviceDataFlow(deviceData?.deviceName ?: "")
-        .collectAsState(emptyList()).value
+    var latestDeviceData by remember {
+        mutableStateOf<DeviceRoomDataEntity?>(null)
+    }
 
-    // Access the values you want from the list of DeviceRoomDataEntity
-    val temperatureList = mutableListOf<String>()
-    val bleDataCountList = mutableListOf<String>()
-    val currentDateAndTimeList = mutableListOf<String>()
-    val accXValuesList = mutableListOf<Int?>()
-    val accYValuesList = mutableListOf<Int?>()
-    val accZValuesList = mutableListOf<Int?>()
-
-
-    val context = LocalContext.current
-
-    var isSavingData by remember { mutableStateOf(false) }
-
-    if (isSavingData) {
-        // Get the data from RoomDB
-        val dataToSave = allDeviceData.map { deviceRoomDataEntity ->
-            // You can format the data as needed for CSV
-            "${deviceRoomDataEntity.currentDateAndTime},${deviceRoomDataEntity.temperature},${deviceRoomDataEntity.bleDataCount}"
-        }
-
-        // Define the CSV file path (change it as needed)
-        val csvFileName = "data.csv"
-
-        // Get the directory for saving files
-        val directory = context.getExternalFilesDir(null)
-
-        if (directory != null) {
-            val csvFilePath = File(directory, csvFileName)
-
-            // Save data to CSV file
-            try {
-                csvFilePath.writeText(dataToSave.joinToString("\n"))
-
-                // Reset the flag
-                isSavingData = false
-
-                // Show a toast message using the context
-                Toast.makeText(context, "Data saved to ${csvFilePath.absolutePath}", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Log.e("ConnectScreen", "Error saving data to CSV: ${e.message}")
-                // Handle the error as needed
-            }
-        } else {
-            Log.e("ConnectScreen", "External storage directory not found.")
-            // Handle the case where external storage directory is not available
+    LaunchedEffect(deviceData?.deviceName) {
+        Log.d("ConnectScreen", "LaunchedEffect started")
+        val latestDataFlow = deviceDataRepository.observeLatestDeviceData(deviceData?.deviceName ?: "")
+        latestDataFlow.collect { updatedDeviceData ->
+            Log.d("ConnectScreen", "Latest data received: $updatedDeviceData")
+            latestDeviceData = updatedDeviceData
         }
     }
 
-    allDeviceData.forEach { data ->
-        val temperature = data.temperature
-        val bleDataCount = data.bleDataCount
-        val currentDateAndTime = data.currentDateAndTime
+    // Declare mutable state lists for accelerometer data
+    val updatedAccXValues = remember { mutableStateListOf<Int?>() }
+    val updatedAccYValues = remember { mutableStateListOf<Int?>() }
+    val updatedAccZValues = remember { mutableStateListOf<Int?>() }
 
-
-        // Add the values to their respective lists
-        temperatureList.add(temperature.toString())
-        bleDataCountList.add(bleDataCount.toString())
-        currentDateAndTimeList.add(currentDateAndTime.toString())
-
-        // Collect accX, accY, and accZ values from the RoomDB
-        accXValuesList.add(data.valueX)
-        accYValuesList.add(data.valueY)
-        accZValuesList.add(data.valueZ)
-
-//        // You can use these values to update your UI or perform other actions
-//        Log.d("ConnectScreen", "Temperature: $temperature, BLE Data Count: $bleDataCount")
-//        Log.d("ConnectScreen", "Date and Time: $currentDateAndTime")
-//        Log.d("ConnectScreen", "ACC_X Values: $accXValues")
-//        Log.d("ConnectScreen", "ACC_Y Values: $accYValues")
-//        Log.d("ConnectScreen", "ACC_Z Values: $accZValues")
+    if (latestDeviceData != null) {
+        // Collect accX, accY, and accZ values from the latest data
+        updatedAccXValues.addAll(listOf(latestDeviceData!!.valueX))
+        updatedAccYValues.addAll(listOf(latestDeviceData!!.valueY))
+        updatedAccZValues.addAll(listOf(latestDeviceData!!.valueZ))
     }
-
-
-
-    // Access the most recent values from the lists
-    val latestTemperature = temperatureList.lastOrNull() ?: "N/A"
-    val latestBleDataCount = bleDataCountList.lastOrNull() ?: "N/A"
-    val latestCurrentDateAndTime = currentDateAndTimeList.lastOrNull() ?: "N/A"
-
-
-
-
 
     bleManager.onConnectedStateObserve(object : BleInterface {
         override fun onConnectedStateObserve(isConnected: Boolean, data: String) {
@@ -142,10 +94,34 @@ fun ConnectScreen(
         }
     })
 
-    var declarationDialogState by remember {
-        mutableStateOf(false)
-    }
+    var startBleCount by remember { mutableStateOf(0) }
 
+    // Create a coroutine scope
+    val coroutineScope = rememberCoroutineScope()
+
+    var showToast by remember { mutableStateOf(false) }
+
+    fun exportDataToCsv(dataToExport: List<DeviceRoomDataEntity>) {
+        val currentTime = SimpleDateFormat("yyyy_MM_dd_HH.mm.ss", Locale.getDefault()).format(Date())
+        val filePath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)?.absolutePath + "/$currentTime.csv"
+
+        // Open a file writer
+        val fileWriter = FileWriter(filePath)
+
+        // Write the CSV header (column names)
+        fileWriter.append("Temperature, BLE Data Count, Date and Time, AccX,AccY,AccZ\n")
+
+        // Write each data row to the CSV file
+        for (data in dataToExport) {
+            fileWriter.append("${data.temperature}, ${data.bleDataCount}, ${data.currentDateAndTime}, ${data.valueX}, ${data.valueY}, ${data.valueZ}\n")
+        }
+
+        // Close the file writer
+        fileWriter.close()
+
+        // Set the showToast flag to true
+        showToast = true
+    }
 
     Column(
         Modifier
@@ -166,7 +142,18 @@ fun ConnectScreen(
             )
             Button(
                 onClick = {
-                    isSavingData = true
+                    // When the button is pressed, fetch all data from 0 to the current count
+                    coroutineScope.launch {
+                        val dataToExport = deviceDataRepository.getDeviceDataWithBleCountGreaterOrEqual(
+                            deviceData?.deviceName ?: "",
+                            0 // Start from 0
+                        )
+
+                        // Export data to CSV file
+                        if (dataToExport.isNotEmpty()) {
+                            exportDataToCsv(dataToExport)
+                        }
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -176,36 +163,42 @@ fun ConnectScreen(
             }
         }
 
-        val scroll = rememberScrollState(0)
+        // Display a Toast message when the file is saved
+        if (showToast) {
+            Toast.makeText(LocalContext.current, "저장 되었습니다.", Toast.LENGTH_SHORT).show()
+            showToast = false // Reset the flag
+        }
 
+        val scroll = rememberScrollState(0)
 
         Column(
             modifier = Modifier
                 .padding(top = 5.dp)
                 .verticalScroll(scroll)
         ) {
-            // Access and display temperature
-            // Display the most recent values in your UI
-            Text(
-                text = "Latest Temperature: $latestTemperature",
-                style = TextStyle(
-                    fontSize = 14.sp,
+            // Display the latest data
+            if (latestDeviceData != null) {
+                Text(
+                    text = "Latest Temperature: ${latestDeviceData!!.temperature}",
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                    )
                 )
-            )
 
-            Text(
-                text = "Latest BLE Data Count: $latestBleDataCount",
-                style = TextStyle(
-                    fontSize = 14.sp,
+                Text(
+                    text = "Latest BLE Data Count: ${latestDeviceData!!.bleDataCount}",
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                    )
                 )
-            )
 
-            Text(
-                text = "Latest Date and Time: $latestCurrentDateAndTime",
-                style = TextStyle(
-                    fontSize = 14.sp,
+                Text(
+                    text = "Latest Date and Time: ${latestDeviceData!!.currentDateAndTime}",
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                    )
                 )
-            )
+            }
 
             Text(
                 text = connectedData.value,
@@ -215,10 +208,14 @@ fun ConnectScreen(
             )
         }
 
-//        Log.d("ConnectScreen", "accXs: $accXs")
-//        Log.d("ConnectScreen", "accYs: $accYs")
-//        Log.d("ConnectScreen", "accZs: $accZs")
-        LineChartGraph(accXValuesList, accYValuesList, accZValuesList)
+        // Display the LineChartGraph with the latest accelerometer data
+        if (latestDeviceData != null) {
+            LineChartGraph(
+                listOf(latestDeviceData!!.valueX!!.toFloat()),
+                listOf(latestDeviceData!!.valueY!!.toFloat()),
+                listOf(latestDeviceData!!.valueZ!!.toFloat())
+            )
+        }
     }
 }
 

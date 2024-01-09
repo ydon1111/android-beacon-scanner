@@ -28,6 +28,22 @@ interface DeviceDataDao {
     @Query("SELECT * FROM device_data WHERE deviceName = :deviceName")
     fun getDeviceDataFlow(deviceName: String): Flow<List<DeviceRoomDataEntity>>
 
+    @Query("SELECT * FROM device_data WHERE deviceName = :deviceName ORDER BY currentDateAndTime DESC LIMIT 18")
+    suspend fun getLatestDeviceData(deviceName: String): DeviceRoomDataEntity?
 
+
+    @Query("SELECT * FROM device_data WHERE deviceName = :deviceName ORDER BY currentDateAndTime DESC")
+    fun getLatestDeviceDataFlow(deviceName: String): Flow<DeviceRoomDataEntity?>
+
+    @Query("SELECT * FROM device_data WHERE deviceName = :deviceName AND bleDataCount = :bleDataCount AND currentDateAndTime = :currentDateAndTime")
+    suspend fun getDeviceDataWithSameValues(
+        deviceName: String,
+        bleDataCount: Int,
+        currentDateAndTime: String
+    ): List<DeviceRoomDataEntity>
+
+
+    @Query("SELECT * FROM device_data WHERE deviceName = :deviceName AND bleDataCount >= :bleCount")
+    suspend fun getDeviceDataWithBleCountGreaterOrEqual(deviceName: String, bleCount: Int): List<DeviceRoomDataEntity>
 
 }
