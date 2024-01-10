@@ -49,4 +49,10 @@ object DatabaseModule {
     fun provideApplicationContext(@ApplicationContext context: Context): Context {
         return context
     }
+
+    @Provides
+    @Singleton
+    fun provideDeviceDataRepository(@ApplicationContext context: Context): DeviceDataRepository {
+        return DeviceDataRepository.getInstance(context)
+    }
 }

@@ -42,7 +42,6 @@ interface DeviceDataDao {
         currentDateAndTime: String
     ): List<DeviceRoomDataEntity>
 
-
     @Query("SELECT * FROM device_data WHERE deviceName = :deviceName AND bleDataCount >= :bleCount")
     suspend fun getDeviceDataWithBleCountGreaterOrEqual(deviceName: String, bleCount: Int): List<DeviceRoomDataEntity>
 

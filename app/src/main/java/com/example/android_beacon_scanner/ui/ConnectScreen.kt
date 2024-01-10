@@ -1,7 +1,6 @@
 package com.example.android_beacon_scanner.ui
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.os.Environment
 import android.util.Log
 import android.widget.Toast
@@ -36,7 +35,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
-import com.example.android_beacon_scanner.util.ConnectScreenService
 import kotlinx.coroutines.launch
 import java.io.FileWriter
 import java.text.SimpleDateFormat
@@ -61,9 +59,9 @@ fun ConnectScreen(
     }
 
 // Start the ConnectScreenService when needed
-    val context = LocalContext.current
-    val startServiceIntent = Intent(context, ConnectScreenService::class.java)
-    context.startService(startServiceIntent)
+//    val context = LocalContext.current
+//    val startServiceIntent = Intent(context, ConnectScreenService::class.java)
+//    context.startService(startServiceIntent)
 
 
     LaunchedEffect(deviceData?.deviceName) {
