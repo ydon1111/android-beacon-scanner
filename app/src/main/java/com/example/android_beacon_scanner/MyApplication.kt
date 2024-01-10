@@ -4,12 +4,9 @@ import android.app.AlertDialog
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.ViewModelProvider
-import androidx.work.Configuration
-import androidx.work.WorkManager
 import com.example.android_beacon_scanner.ble.BleViewModel
 import com.example.android_beacon_scanner.room.AppDatabase
 import com.example.android_beacon_scanner.room.DeviceDataRepository
-import com.example.android_beacon_scanner.worker.setupWorkManager
 import dagger.hilt.android.HiltAndroidApp
 
 

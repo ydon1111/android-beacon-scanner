@@ -10,33 +10,19 @@ import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.core.util.containsKey
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.OnLifecycleEvent
-import androidx.lifecycle.ProcessLifecycleOwner
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequest
-import androidx.work.WorkManager
-import androidx.work.workDataOf
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
-import com.example.android_beacon_scanner.worker.ConnectScreenWorker
-import com.example.android_beacon_scanner.worker.DataInsertWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -146,7 +132,7 @@ class BleManager @Inject constructor(
 
                         MainScope().launch(Dispatchers.IO) {
                             deviceDataRepository.insertDeviceData(scanItem)
-                            Log.d("BleManager", "Inserted data into Room database: $scanItem")
+//                            Log.d("BleManager", "Inserted data into Room database: $scanItem")
                         }
                         scanList?.add(scanItem)
                         // 추출된 값들을 로그로 출력
@@ -162,88 +148,6 @@ class BleManager @Inject constructor(
         override fun onScanFailed(errorCode: Int) {
             println("onScanFailed  $errorCode")
         }
-
-//        fun sendDataToDataInsertWorker(data: InsertData) {
-//            val workRequest = OneTimeWorkRequestBuilder<DataInsertWorker>()
-//                .setInputData(
-//                    workDataOf(
-//                        "deviceName" to data.deviceName,
-//                        "deviceAddress" to data.deviceAddress,
-//                        "manufacturerData" to data.manufacturerData,
-//                        "temperature" to data.temperature,
-//                        "bleDataCount" to data.bleDataCount,
-//                        "currentDateAndTime" to data.currentDateAndTime,
-//                        "timestampNanos" to data.timestampNanos,
-//                        "valueX" to data.valueX,
-//                        "valueY" to data.valueY,
-//                        "valueZ" to data.valueZ
-//                    )
-//                )
-//                .build()
-//
-//            WorkManager.getInstance(context).enqueue(workRequest)
-//        }
-//
-//
-//        // LifecycleObserver를 사용하여 앱의 상태를 관찰
-//        private val appLifecycleObserver = object : LifecycleObserver {
-//            @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
-//            fun onBackground() {
-//                // 앱이 백그라운드로 이동할 때 BLE 스캔을 시작하도록 WorkManager를 설정
-//                Handler(Looper.getMainLooper()).post {
-//                    // Call addObserver on the main thread
-//                    setupBleScanWorkManager()
-//                }
-//            }
-//
-//            @OnLifecycleEvent(Lifecycle.Event.ON_START)
-//            fun onForeground() {
-//                // 앱이 포그라운드로 돌아올 때 BLE 스캔을 중지
-//                stopBleScan()
-//            }
-//        }
-//
-//
-//
-//
-
-
-//        // 앱이 백그라운드로 이동할 때 BLE 스캔을 주기적으로 시작하는 WorkManager 설정
-//        @SuppressLint("InvalidPeriodicWorkRequestInterval")
-//        private fun setupBleScanWorkManager() {
-//            val workRequest = PeriodicWorkRequest.Builder(
-//                ConnectScreenWorker::class.java,
-//                4, // 주기 (초 단위)
-//                TimeUnit.SECONDS
-//            ).build()
-//
-//            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-//                "BleScanWork",
-//                ExistingPeriodicWorkPolicy.REPLACE,
-//                workRequest
-//            )
-//        }
-
-//        private fun setupDataInsertWorkManager() {
-//            val workRequest = PeriodicWorkRequest.Builder(
-//                DataInsertWorker::class.java,
-//                15, // 주기 (분 단위)
-//                TimeUnit.MINUTES // 원하는 주기에 맞게 설정
-//            ).build()
-//
-//            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-//                "DataInsertWork",
-//                ExistingPeriodicWorkPolicy.REPLACE,
-//                workRequest
-//            )
-//        }
-
-//        init {
-//            Handler(Looper.getMainLooper()).post {
-//                ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
-//            }
-//        }
-
     }
 
 
@@ -315,15 +219,6 @@ class BleManager @Inject constructor(
         bluetoothLeScanner.stopScan(scanCallback)
     }
 
-//    @SuppressLint("MissingPermission")
-//    suspend fun startBleConnectGatt(deviceData: DeviceRoomDataEntity) {
-//        bluetoothAdapter.getRemoteDevice(deviceData.deviceAddress)
-//            .connectGatt(context, false, gattCallback)
-//
-//        // Insert the data into the database when connecting to the device
-//        insertDeviceDataIfNotExists(deviceData)
-//    }
-
     fun setScanList(pScanList: SnapshotStateList<DeviceRoomDataEntity>) {
         scanList = pScanList
     }
@@ -331,18 +226,6 @@ class BleManager @Inject constructor(
     fun onConnectedStateObserve(pConnectedStateObserver: BleInterface) {
         connectedStateObserver = pConnectedStateObserver
     }
-
-//    @SuppressLint("MissingPermission")
-//    private suspend fun isDeviceDataExists(deviceAddress: String): Boolean {
-//        return deviceDataRepository.isDeviceDataExists(deviceAddress)
-//    }
-//
-//    private suspend fun insertDeviceDataIfNotExists(deviceData: DeviceRoomDataEntity) {
-//        val deviceAddress = deviceData.deviceAddress
-//        if (!isDeviceDataExists(deviceAddress)) {
-//            deviceDataRepository.insertDeviceData(deviceData)
-//        }
-//    }
 
 }
 

@@ -33,7 +33,7 @@ import com.example.android_beacon_scanner.ui.ConnectScreen
 import com.example.android_beacon_scanner.ui.ScanScreen
 import com.example.android_beacon_scanner.ui.theme.AndroidbeaconscannerTheme
 import com.example.android_beacon_scanner.service.ConnectScreenService
-import com.example.android_beacon_scanner.worker.ConnectScreenWorker
+import com.example.android_beacon_scanner.service.DeepSleepService
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -54,11 +54,20 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        startForegroundServiceIfNeeded()
+        val serviceIntent = Intent(this, ConnectScreenService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
 
-        // WorkManager를 사용하여 ConnectScreenWorker를 예약하고 실행
-        val repeatIntervalMinutes: Long = 1 // 작업 주기 (분 단위)
-        scheduleConnectScreenWorker(repeatIntervalMinutes)
+        val deepSleepServiceIntent = Intent(this, DeepSleepService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(deepSleepServiceIntent)
+        } else {
+            startService(deepSleepServiceIntent)
+        }
+
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
@@ -98,35 +107,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun scheduleConnectScreenWorker(repeatIntervalMinutes: Long) {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED) // 필요한 네트워크 연결 유형을 설정 (선택 사항)
-            .build()
 
-        val periodicWorkRequest = PeriodicWorkRequest.Builder(
-            ConnectScreenWorker::class.java,
-            repeatIntervalMinutes, // 작업 주기 (분 단위)
-            TimeUnit.MINUTES
-        )
-            .setConstraints(constraints) // 작업 제약 조건 설정 (선택 사항)
-            .build()
-
-        // WorkManager에 주기적인 작업 예약
-        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
-            "ConnectScreenWorker",
-            ExistingPeriodicWorkPolicy.REPLACE, // 기존 작업을 대체하도록 설정
-            periodicWorkRequest
-        )
-    }
-
-    private fun startForegroundServiceIfNeeded() {
-        val serviceIntent = Intent(this, ConnectScreenService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
-    }
 
 
     private val permissionArray = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

@@ -19,7 +19,6 @@ import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.R
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
-import com.example.android_beacon_scanner.worker.ConnectScreenWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -38,8 +37,6 @@ class ConnectScreenService : Service() {
         deviceDataRepository = DeviceDataRepository.getInstance(applicationContext)
         bleManager = BleManager(applicationContext, deviceDataRepository)
 
-        // WorkManager를 설정하여 주기적으로 ConnectScreenWorker를 실행
-        setupWorkManager()
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -101,24 +98,6 @@ class ConnectScreenService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? {
         return null
-    }
-
-    @SuppressLint("InvalidPeriodicWorkRequestInterval")
-    private fun setupWorkManager() {
-        val workRequest = PeriodicWorkRequest.Builder(
-            ConnectScreenWorker::class.java,
-            1, // 주기 (분 단위)
-            TimeUnit.MINUTES // 원하는 주기에 맞게 설정
-        ).build()
-
-        val notification = createNotification()
-        startForeground(NOTIFICATION_ID, notification)
-
-        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
-            "ConnectScreenWorker",
-            ExistingPeriodicWorkPolicy.REPLACE,
-            workRequest
-        )
     }
 
     private fun createNotification(): Notification {
