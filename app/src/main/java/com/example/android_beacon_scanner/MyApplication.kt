@@ -16,9 +16,6 @@ class MyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-//        setupWorkManager(applicationContext)
-
-
 
         try {
             // Initialize the Room database instance
@@ -59,8 +56,6 @@ class MyApplication : Application() {
             .setCancelable(false)
             .show()
     }
-
-
 
     override fun onTerminate() {
         super.onTerminate()

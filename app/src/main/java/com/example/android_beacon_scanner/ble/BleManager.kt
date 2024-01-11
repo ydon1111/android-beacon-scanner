@@ -15,6 +15,8 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.core.util.containsKey
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +44,7 @@ class BleManager @Inject constructor(
 
     private var connectedDevice: DeviceRoomDataEntity? = null
 
+
     fun setConnectedDevice(deviceData: DeviceRoomDataEntity) {
         connectedDevice = deviceData
     }
@@ -50,7 +53,6 @@ class BleManager @Inject constructor(
     fun getConnectedDevice(): DeviceRoomDataEntity? {
         return connectedDevice
     }
-
 
     private val scanCallback: ScanCallback = @RequiresApi(Build.VERSION_CODES.O)
     object : ScanCallback() {
@@ -66,7 +68,6 @@ class BleManager @Inject constructor(
                         manufacturerDataValue?.map { it.toInt() }?.toIntArray()
 
                     Log.d("onScanResult", result.toString())
-//                    Log.d("manufacturerData", manufacturerDataIntArray.toString())
 
                     val temperature = manufacturerDataIntArray?.let {
                         if (it.size >= 2) {
@@ -79,19 +80,15 @@ class BleManager @Inject constructor(
                     val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
                     val timestampNano = result.timestampNanos
-                    // Format timestampNano to a readable date-time string
                     val formattedTimestamp =
-                        dateFormat.format(Date(timestampNano / 1000000L)) // Convert nanoseconds to milliseconds
+                        dateFormat.format(Date(timestampNano / 1000000L))
 
                     val currentDateAndTime = Date()
                     val formattedDate = dateFormat.format(currentDateAndTime)
 
-//                    Log.d("BleManager", "Formatted Timestamp: $formattedTimestamp")
-//                    Log.d("BleManager", "temperature: ${temperature?.toString() ?: "null"}")
-
-                    val startIndex = 0  // 시작 인덱스
-                    val step = 12       // 간격
-                    val count = 18      // 추출할 값의 개수
+                    val startIndex = 0
+                    val step = 12
+                    val count = 18
 
                     for (i in 0 until count) {
                         val indexX = startIndex + i * step
@@ -122,7 +119,7 @@ class BleManager @Inject constructor(
                             deviceAddress = result.device.address ?: "null",
                             manufacturerData = manufacturerData[16505],
                             temperature = temperature,
-                            bleDataCount = bleDataCount, // 현재 i를 사용하여 0부터 17까지 증가
+                            bleDataCount = bleDataCount,
                             currentDateAndTime = formattedDate,
                             timestampNanos = formattedTimestamp,
                             valueX = valueX,
@@ -130,26 +127,26 @@ class BleManager @Inject constructor(
                             valueZ = valueZ
                         )
 
-                        MainScope().launch(Dispatchers.IO) {
-                            deviceDataRepository.insertDeviceData(scanItem)
-//                            Log.d("BleManager", "Inserted data into Room database: $scanItem")
-                        }
+//                        MainScope().launch(Dispatchers.IO) {
+//                            deviceDataRepository.insertDeviceData(scanItem)
+//                        }
+
+                        // LiveData 업데이트
+
                         scanList?.add(scanItem)
-                        // 추출된 값들을 로그로 출력
-//                        Log.d("ACC_X", "Value $i: $valueX")
-//                        Log.d("ACC_Y", "Value $i: $valueY")
-//                        Log.d("ACC_Z", "Value $i: $valueZ")
                     }
+
+
                     bleDataCount++
                 }
             }
         }
 
+
         override fun onScanFailed(errorCode: Int) {
             println("onScanFailed  $errorCode")
         }
     }
-
 
     private val gattCallback = object : BluetoothGattCallback() {
         @SuppressLint("MissingPermission")
@@ -209,7 +206,9 @@ class BleManager @Inject constructor(
         scanList?.clear()
 
         val scanSettings =
-            ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).setLegacy(false)
+            ScanSettings.Builder()
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+                .setLegacy(false)
                 .build()
         bluetoothLeScanner.startScan(null, scanSettings, scanCallback)
     }
@@ -226,7 +225,6 @@ class BleManager @Inject constructor(
     fun onConnectedStateObserve(pConnectedStateObserver: BleInterface) {
         connectedStateObserver = pConnectedStateObserver
     }
-
 }
 
 
