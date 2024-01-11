@@ -8,7 +8,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Handler
-import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
@@ -18,8 +17,13 @@ import androidx.lifecycle.LifecycleService
 import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.R
 import com.example.android_beacon_scanner.room.DeviceDataRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 
 
+@SuppressLint("MissingPermission")
+@RequiresApi(Build.VERSION_CODES.O)
 class ConnectScreenService : LifecycleService() {
 
     private val CHANNEL_ID = "ConnectScreenServiceChannel"
@@ -30,19 +34,10 @@ class ConnectScreenService : LifecycleService() {
     // Declare a variable for the wake lock
     private var wakeLock: PowerManager.WakeLock? = null
 
-    private var count = 0
+    private val count = 0
     private val handler = Handler(Looper.getMainLooper())
 
-    private val runnable = object : Runnable {
-        override fun run() {
-            // Log the count
-            Log.d("ConnectScreenService", "Count: $count")
-            count++
 
-            // Schedule the runnable with a delay (e.g., 1 second)
-            handler.postDelayed(this, 1000)
-        }
-    }
 
     override fun onCreate() {
         super.onCreate()
@@ -52,8 +47,8 @@ class ConnectScreenService : LifecycleService() {
         // Acquire the wake lock when the service is created
         acquireWakeLock()
 
-        // Start the periodic task to log the count
-        handler.postDelayed(runnable, 1000)
+        // Start the periodic task to start BLE scanning
+//        handler.postDelayed(runnable, 1000)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -62,12 +57,25 @@ class ConnectScreenService : LifecycleService() {
         // Acquire a wake lock
         acquireWakeLock()
 
+        // Set the scan result callback
+        bleManager.setScanResultCallback { scanResult ->
+            // Handle the scan result here
+            val scanItem = bleManager.getScanItem(scanResult)
+
+            // Insert the scan result into the database
+            scanItem?.let {
+                MainScope().launch(Dispatchers.IO) {
+                    deviceDataRepository.insertDeviceData(it)
+                }
+            }
+        }
+
+        // Start BLE scanning using BleManager
+        bleManager.startBleScan()
+
         // Foreground Service with ongoing notification
         val notification = createNotification()
         startForeground(NOTIFICATION_ID, notification)
-
-        // Start BLE scanning
-        bleManager.startBleScan()
 
         return START_STICKY
     }
@@ -81,7 +89,7 @@ class ConnectScreenService : LifecycleService() {
         releaseWakeLock()
 
         // Stop the periodic task
-        handler.removeCallbacks(runnable)
+//        handler.removeCallbacks(runnable)
     }
 
     private fun createNotification(): Notification {
@@ -136,6 +144,28 @@ class ConnectScreenService : LifecycleService() {
             }
         }
     }
+
+//    private val runnable = object : Runnable {
+//        override fun run() {
+//            // Start BLE scanning using BleManager
+//            val scanResult = bleManager.startBleScan()
+//
+//
+//            // Get the scan item from BleManager
+//            val scanItem = bleManager.getScanItem(scanResult)
+//
+//            // Insert the scan result into the database
+//            // Insert the scan result into the database
+//            scanItem?.let {
+//                MainScope().launch(Dispatchers.IO) {
+//                    deviceDataRepository.insertDeviceData(it)
+//                }
+//            }
+//
+//            // Schedule the runnable with a delay (e.g., 1 second)
+//            handler.postDelayed(this, 50000)
+//        }
+//    }
 }
 
 

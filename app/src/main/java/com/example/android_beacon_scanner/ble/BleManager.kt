@@ -44,12 +44,10 @@ class BleManager @Inject constructor(
 
     private var connectedDevice: DeviceRoomDataEntity? = null
 
-
     fun setConnectedDevice(deviceData: DeviceRoomDataEntity) {
         connectedDevice = deviceData
     }
 
-    // 현재 연결된 BLE 장치를 반환하는 메서드 추가
     fun getConnectedDevice(): DeviceRoomDataEntity? {
         return connectedDevice
     }
@@ -73,7 +71,7 @@ class BleManager @Inject constructor(
                         if (it.size >= 2) {
                             it[it.size - 2] // Second-to-last number
                         } else {
-                            null // Return null if the array is too short
+                            null
                         }
                     }
 
@@ -113,7 +111,6 @@ class BleManager @Inject constructor(
                             0
                         }
 
-                        // 데이터베이스에 값 넣기
                         val scanItem = DeviceRoomDataEntity(
                             deviceName = deviceName,
                             deviceAddress = result.device.address ?: "null",
@@ -127,21 +124,16 @@ class BleManager @Inject constructor(
                             valueZ = valueZ
                         )
 
-//                        MainScope().launch(Dispatchers.IO) {
-//                            deviceDataRepository.insertDeviceData(scanItem)
-//                        }
-
-                        // LiveData 업데이트
+                        MainScope().launch(Dispatchers.IO) {
+                            deviceDataRepository.insertDeviceData(scanItem)
+                        }
 
                         scanList?.add(scanItem)
                     }
-
-
                     bleDataCount++
                 }
             }
         }
-
 
         override fun onScanFailed(errorCode: Int) {
             println("onScanFailed  $errorCode")
@@ -194,7 +186,6 @@ class BleManager @Inject constructor(
                     connectedStateObserver?.onConnectedStateObserve(
                         true, sendText
                     )
-
                 }
             }
         }
@@ -225,7 +216,101 @@ class BleManager @Inject constructor(
     fun onConnectedStateObserve(pConnectedStateObserver: BleInterface) {
         connectedStateObserver = pConnectedStateObserver
     }
+
+    // RoomDB에 데이터를 저장하는 함수 추가
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun saveDataToDeviceDataRepository(scanItem: DeviceRoomDataEntity) {
+        MainScope().launch(Dispatchers.IO) {
+            deviceDataRepository.insertDeviceData(scanItem)
+        }
+    }
+
+
+    @SuppressLint("MissingPermission")
+    fun getScanItem(scanResult: ScanResult?): DeviceRoomDataEntity? {
+        if (scanResult != null) {
+            val deviceName = scanResult.device.name
+            if (deviceName != null && deviceName.contains("M")) {
+                val manufacturerData = scanResult.scanRecord?.manufacturerSpecificData
+                if (manufacturerData != null && manufacturerData.containsKey(16505)) {
+                    val manufacturerDataValue = manufacturerData[16505]
+                    val manufacturerDataIntArray =
+                        manufacturerDataValue?.map { it.toInt() }?.toIntArray()
+
+                    Log.d("onScanResult", scanResult.toString())
+
+                    val temperature = manufacturerDataIntArray?.let {
+                        if (it.size >= 2) {
+                            it[it.size - 2] // Second-to-last number
+                        } else {
+                            null
+                        }
+                    }
+
+                    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+
+                    val timestampNano = scanResult.timestampNanos
+                    val formattedTimestamp =
+                        dateFormat.format(Date(timestampNano / 1000000L))
+
+                    val currentDateAndTime = Date()
+                    val formattedDate = dateFormat.format(currentDateAndTime)
+
+                    val startIndex = 0
+                    val step = 12
+                    val count = 18
+
+                    for (i in 0 until count) {
+                        val indexX = startIndex + i * step
+                        val indexY = (startIndex + 2) + i * step
+                        val indexZ = (startIndex + 4) + i * step
+
+                        val valueX = if (indexX < (manufacturerDataIntArray?.size ?: 0)) {
+                            manufacturerDataIntArray?.get(indexX) ?: 0
+                        } else {
+                            0
+                        }
+
+                        val valueY = if (indexY < (manufacturerDataIntArray?.size ?: 0)) {
+                            manufacturerDataIntArray?.get(indexY) ?: 0
+                        } else {
+                            0
+                        }
+
+                        val valueZ = if (indexZ < (manufacturerDataIntArray?.size ?: 0)) {
+                            manufacturerDataIntArray?.get(indexZ) ?: 0
+                        } else {
+                            0
+                        }
+                        // Create a DeviceRoomDataEntity instance
+                        val scanItem = DeviceRoomDataEntity(
+                            deviceName = deviceName,
+                            deviceAddress = scanResult.device.address ?: "null",
+                            manufacturerData = manufacturerData[16505],
+                            temperature = temperature,
+                            bleDataCount = bleDataCount,
+                            currentDateAndTime = formattedDate,
+                            timestampNanos = formattedTimestamp,
+                            valueX = valueX,
+                            valueY = valueY,
+                            valueZ = valueZ
+                        )
+
+                        return scanItem
+                    }
+                }
+            }
+        }
+        return null
+    }
+
+    private var scanResultCallback: ((ScanResult) -> Unit)? = null
+
+    fun setScanResultCallback(callback: (ScanResult) -> Unit) {
+        scanResultCallback = callback
+    }
 }
+
 
 
 

@@ -54,7 +54,10 @@ import com.example.android_beacon_scanner.ui.theme.ScanItemTypography
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun ScanScreen(navController: NavHostController, bleManager: BleManager) {
+fun ScanScreen(
+    navController: NavHostController,
+    bleManager: BleManager) {
+
     val scanList = remember { mutableStateListOf<DeviceRoomDataEntity>() }
     val isScanning = remember { mutableStateOf(false) }
     val context = LocalContext.current
