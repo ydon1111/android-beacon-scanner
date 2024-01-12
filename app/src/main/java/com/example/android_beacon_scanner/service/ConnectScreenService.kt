@@ -247,7 +247,17 @@ class ConnectScreenService : LifecycleService() {
             // result 변수를 사용하여 스캔된 BLE 디바이스에 대한 정보에 접근할 수 있습니다.
             Log.d("BleScanCallback", "Received BLE scan result: $result")
 
-            // 예를 들어, 스캔 결과를 저장하거나 필요한 작업을 수행할 수 있습니다.
+            // 스캔 결과에서 Manufacturer Specific Data를 가져옵니다.
+            val manufacturerSpecificData = result.scanRecord?.manufacturerSpecificData
+
+            // Manufacturer Specific Data에 16505가 있는지 확인합니다.
+            if (manufacturerSpecificData?.containsKey(16505) == true) {
+                // 16505에 해당하는 데이터를 추출합니다.
+                val data = manufacturerSpecificData[16505]
+
+                // data를 사용하여 필요한 작업을 수행합니다.
+                Log.d("BleScanCallback", "Received 16505 data: ${data.toList()}")
+            }
         }
     }
 }
