@@ -2,6 +2,7 @@ package com.example.android_beacon_scanner.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -164,6 +165,10 @@ fun ScanItem(
         ),
         modifier = Modifier.padding(vertical = 4.dp),
         onClick = {
+
+            // Pair with the device when the card is clicked
+            pairWithDevice(deviceData.deviceAddress)
+
             navController.currentBackStackEntry?.savedStateHandle?.set(key = "deviceData", value = deviceDataState.value)
             navController.navigate("ConnectScreen")
         }
@@ -242,4 +247,26 @@ private val permissionArray = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.WRITE_EXTERNAL_STORAGE // Add WRITE_EXTERNAL_STORAGE permission
     )
+}
+
+@SuppressLint("MissingPermission")
+private fun pairWithDevice(deviceAddress: String) {
+    val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
+    val device = bluetoothAdapter.getRemoteDevice(deviceAddress)
+
+    try {
+        // Initiate pairing with the device
+        val pairingSuccessful = device.createBond()
+
+        if (pairingSuccessful) {
+            // Pairing initiated successfully
+            // You can handle the success case here
+        } else {
+            // Pairing failed
+            // You can handle the failure case here
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        // Handle any exceptions that may occur during pairing
+    }
 }

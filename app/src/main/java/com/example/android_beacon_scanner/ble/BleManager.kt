@@ -1,15 +1,19 @@
 package com.example.android_beacon_scanner
 
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -42,7 +46,11 @@ class BleManager @Inject constructor(
 
     private var bleDataCount = 0
 
+    private var isScanning = false // 스캔 상태를 나타내는 변수
+
     private var connectedDevice: DeviceRoomDataEntity? = null
+
+    private var connectionRetries = 0
 
     fun setConnectedDevice(deviceData: DeviceRoomDataEntity) {
         connectedDevice = deviceData
@@ -148,17 +156,30 @@ class BleManager @Inject constructor(
             super.onConnectionStateChange(gatt, status, newState)
 
             if (newState == BluetoothProfile.STATE_CONNECTED) {
+                // Connection successful, reset connection retries
+                connectionRetries = 0
                 Log.d("BleManager", "Connected")
                 gatt?.discoverServices()
-                connectedStateObserver?.onConnectedStateObserve(
-                    true, "Connected"
-                )
+                connectedStateObserver?.onConnectedStateObserve(true, "Connected")
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.d("BleManager", "Disconnected")
-                connectedStateObserver?.onConnectedStateObserve(
-                    false, "Disconnected"
-                )
+
+                // Handle disconnection here
+                connectedStateObserver?.onConnectedStateObserve(false, "Disconnected")
                 bleDataCount = 0
+
+                // Retry connection (up to a certain number of retries)
+                if (connectionRetries < MAX_CONNECTION_RETRIES) {
+                    // Retry connecting after a delay
+                    val retryDelayMillis = 1000L // 1 second delay (adjust as needed)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        gatt?.connect()
+                        connectionRetries++
+                    }, retryDelayMillis)
+                } else {
+                    // Handle max retry limit reached
+                    Log.e("BleManager", "Max connection retries reached")
+                }
             }
         }
 
@@ -194,14 +215,27 @@ class BleManager @Inject constructor(
     @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("MissingPermission")
     fun startBleScan() {
-        scanList?.clear()
+        if (!isScanning) { // 스캔 중이 아닌 경우에만 시작
+            scanList?.clear()
 
-        val scanSettings =
-            ScanSettings.Builder()
-                .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
-                .setLegacy(false)
-                .build()
-        bluetoothLeScanner.startScan(null, scanSettings, scanCallback)
+            val scanSettings =
+                ScanSettings.Builder()
+                    .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+                    .setLegacy(false)
+                    .build()
+
+            val filters = mutableListOf<ScanFilter>()
+            // 스캔 필터 생성
+            val scanFilter = ScanFilter.Builder().run {
+                // 16505 키를 가진 제조사 특정 데이터를 탐지하는 필터 설정
+                setManufacturerData(16505, byteArrayOf(), byteArrayOf())
+                build()
+            }
+            // 스캔 필터 추가
+            filters.add(scanFilter)
+
+            bluetoothLeScanner.startScan(filters, scanSettings, scanCallback)
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -224,7 +258,6 @@ class BleManager @Inject constructor(
             deviceDataRepository.insertDeviceData(scanItem)
         }
     }
-
 
     @SuppressLint("MissingPermission")
     fun getScanItem(scanResult: ScanResult?): DeviceRoomDataEntity? {
@@ -295,7 +328,6 @@ class BleManager @Inject constructor(
                             valueY = valueY,
                             valueZ = valueZ
                         )
-
                         return scanItem
                     }
                 }
@@ -309,6 +341,18 @@ class BleManager @Inject constructor(
     fun setScanResultCallback(callback: (ScanResult) -> Unit) {
         scanResultCallback = callback
     }
+
+    // Inside BleManager class
+    @SuppressLint("MissingPermission")
+    fun pairWithBeacon(device: BluetoothDevice) {
+        // Initiate a connection to the selected beacon
+        bleGatt = device.connectGatt(context, false, gattCallback)
+    }
+    companion object {
+        // Define a constant for the maximum connection retries
+        private const val MAX_CONNECTION_RETRIES = 3
+    }
+
 }
 
 

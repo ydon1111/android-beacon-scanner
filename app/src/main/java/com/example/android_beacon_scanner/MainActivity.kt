@@ -11,7 +11,6 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
-import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -30,7 +29,6 @@ import com.example.android_beacon_scanner.ui.ConnectScreen
 import com.example.android_beacon_scanner.ui.ScanScreen
 import com.example.android_beacon_scanner.ui.theme.AndroidbeaconscannerTheme
 import com.example.android_beacon_scanner.service.ConnectScreenService
-import com.example.android_beacon_scanner.service.DeepSleepService
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -134,19 +132,25 @@ class MainActivity : ComponentActivity() {
 
 
     private val permissionArray = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        arrayOf(
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.POST_NOTIFICATIONS,
-            Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(
+
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.POST_NOTIFICATIONS,
+                Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+
+            )
+        } else {
+            TODO("VERSION.SDK_INT < TIRAMISU")
+        }
     } else {
         arrayOf(
             Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.POST_NOTIFICATIONS,
+            Manifest.permission.ACCESS_FINE_LOCATION, // 위치 권한 추가
             Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
         )
     }
