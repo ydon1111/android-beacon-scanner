@@ -52,17 +52,11 @@ class ConnectScreenService : LifecycleService() {
 
     // Declare a variable for the wake lock
     private var wakeLock: PowerManager.WakeLock? = null
-    private val handler = Handler(Looper.getMainLooper())
-
-    // Variable to keep track of screen state
-    private var isScreenOn = true
 
     // Bluetooth variables
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
     private val bluetoothLeScanner: BluetoothLeScanner? = bluetoothAdapter?.bluetoothLeScanner
     private val scanCallback: ScanCallback? = BleScanCallback()
-
-    private var bleDataCount = 0
 
     private var isBleScanning = false // 추가: BLE 스캔 상태를 추적하기 위한 변수
 
@@ -81,19 +75,10 @@ class ConnectScreenService : LifecycleService() {
         // Acquire the wake lock when the service is created
         acquireWakeLock()
 
-        // Register a BroadcastReceiver to monitor screen state changes
-        val screenStateReceiver = ScreenStateReceiver()
-        val screenStateFilter = IntentFilter().apply {
-            addAction(Intent.ACTION_SCREEN_ON)
-            addAction(Intent.ACTION_SCREEN_OFF)
-        }
-        registerReceiver(screenStateReceiver, screenStateFilter)
-
         // Foreground Service with ongoing notification
         val notification = createNotification()
         startForeground(NOTIFICATION_ID, notification)
     }
-
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -101,13 +86,9 @@ class ConnectScreenService : LifecycleService() {
         // Acquire a wake lock
         acquireWakeLock()
 
-        // Start the periodic task to check screen state
-        handler.post(screenStateChecker)
-
         // Start BLE scanning
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (!isBleScanning) {
-                // 스크린 상태와 관계 없이 BLE 스캔을 시작합니다.
                 startBleScan()
                 isBleScanning = true
             }
@@ -125,12 +106,8 @@ class ConnectScreenService : LifecycleService() {
         // Release the acquired wake lock when the service is destroyed
         releaseWakeLock()
 
-        // Remove the screen state checker task
-        handler.removeCallbacks(screenStateChecker)
-
         // Stop BLE scanning
-//        stopBleScan()
-        isBleScanning = false // 스캔이 중지되었음을 표시합니다.
+        stopBleScan()
     }
 
     private fun createNotification(): Notification {
@@ -250,7 +227,6 @@ class ConnectScreenService : LifecycleService() {
             // You can request the permission here or handle it in your app's UI
         } else {
             // Start BLE scanning
-            val scanCallback = BleScanCallback()
             bluetoothLeScanner!!.startScan(filters, scanSettings, scanCallback)
         }
     }
@@ -264,38 +240,6 @@ class ConnectScreenService : LifecycleService() {
         }
     }
 
-    // Runnable to check screen state periodically
-    private val screenStateChecker = object : Runnable {
-        @RequiresApi(Build.VERSION_CODES.S)
-        override fun run() {
-            // 스크린 상태를 확인하지 않고 스캔을 유지합니다.
-
-            startBleScan()
-            isBleScanning = true
-
-            // Schedule the next check after a delay (e.g., 1 second)
-            handler.postDelayed(this, 1000)
-        }
-    }
-
-    // BroadcastReceiver to monitor screen state changes
-    private inner class ScreenStateReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            intent?.let {
-                when (it.action) {
-                    Intent.ACTION_SCREEN_ON -> {
-                        // Screen is turned on
-                        isScreenOn = true
-                    }
-
-                    Intent.ACTION_SCREEN_OFF -> {
-                        // Screen is turned off
-                        isScreenOn = false
-                    }
-                }
-            }
-        }
-    }
     // Custom BLE scan callback
     private inner class BleScanCallback : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -307,7 +251,6 @@ class ConnectScreenService : LifecycleService() {
         }
     }
 }
-
 
 
 
