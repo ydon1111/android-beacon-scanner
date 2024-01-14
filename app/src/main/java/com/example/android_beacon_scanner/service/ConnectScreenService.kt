@@ -50,6 +50,9 @@ class ConnectScreenService : LifecycleService() {
     private val NOTIFICATION_ID = 1
     private lateinit var deviceDataRepository: DeviceDataRepository
 
+    private lateinit var bleManager: BleManager // BleManager 객체 선언
+
+
     // Declare a variable for the wake lock
     private var wakeLock: PowerManager.WakeLock? = null
 
@@ -78,6 +81,10 @@ class ConnectScreenService : LifecycleService() {
         // Foreground Service with ongoing notification
         val notification = createNotification()
         startForeground(NOTIFICATION_ID, notification)
+
+        bleManager = BleManager(applicationContext, deviceDataRepository)
+
+
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -89,13 +96,16 @@ class ConnectScreenService : LifecycleService() {
         // Start BLE scanning
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (!isBleScanning) {
-                startBleScan()
+//                startBleScan()
+//                bleManager.startBleScan()
+
                 isBleScanning = true
             }
         }
 
         // Foreground Service를 시작합니다.
         startForeground(NOTIFICATION_ID, createNotification())
+
 
         return START_STICKY
     }
