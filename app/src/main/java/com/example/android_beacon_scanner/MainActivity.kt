@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -43,8 +44,6 @@ class MainActivity : ComponentActivity() {
 
     private var wakeLock: PowerManager.WakeLock? = null
 
-
-
     // onCreate 메서드
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,7 +58,6 @@ class MainActivity : ComponentActivity() {
             "YourApp::WakeLockTag"
         )
 
-
         val serviceIntent = Intent(this, ConnectScreenService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent)
@@ -73,7 +71,8 @@ class MainActivity : ComponentActivity() {
         }
 
 
-//        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // always screen on
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         setContent {
             AndroidbeaconscannerTheme {
@@ -85,7 +84,7 @@ class MainActivity : ComponentActivity() {
 
                     NavHost(navController = navController, startDestination = "ScanScreen") {
                         composable(route = "ScanScreen") {
-                            ScanScreen(navController,bleManager)
+                            ScanScreen(navController, bleManager)
                         }
                         composable(route = "ConnectScreen") {
                             ConnectScreen(
@@ -128,32 +127,30 @@ class MainActivity : ComponentActivity() {
         wakeLock?.release()
     }
 
-
-
-
-    private val permissionArray = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    private val permissionArray =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             arrayOf(
-
                 Manifest.permission.BLUETOOTH_SCAN,
                 Manifest.permission.BLUETOOTH_CONNECT,
                 Manifest.permission.ACCESS_COARSE_LOCATION,
                 Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.POST_NOTIFICATIONS,
+                Manifest.permission.BATTERY_STATS,
                 Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                 Manifest.permission.ACCESS_BACKGROUND_LOCATION,
-
+                Manifest.permission.POST_NOTIFICATIONS
             )
         } else {
-            TODO("VERSION.SDK_INT < TIRAMISU")
+            arrayOf(
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BATTERY_STATS,
+                Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.POST_NOTIFICATIONS
+            )
         }
-    } else {
-        arrayOf(
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION, // 위치 권한 추가
-            Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-        )
-    }
 
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -178,8 +175,6 @@ class MainActivity : ComponentActivity() {
         intent.data = Uri.parse("package:$packageName")
         startActivity(intent)
     }
-
-
 }
 
 

@@ -11,17 +11,11 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import android.os.Parcel
-import android.os.Parcelable
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
@@ -33,14 +27,6 @@ import androidx.lifecycle.LifecycleService
 import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.R
 import com.example.android_beacon_scanner.room.DeviceDataRepository
-import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
 
 @SuppressLint("MissingPermission")
 @RequiresApi(Build.VERSION_CODES.O)
@@ -69,11 +55,11 @@ class ConnectScreenService : LifecycleService() {
         deviceDataRepository = DeviceDataRepository.getInstance(applicationContext)
 
         // Check for BLUETOOTH_SCAN permission before starting BLE scanning
-        if (hasBluetoothScanPermission()) {
-            checkBatteryOptimizationExemption()
-        } else {
-            requestBluetoothScanPermission()
-        }
+//        if (hasBluetoothScanPermission()) {
+//            checkBatteryOptimizationExemption()
+//        } else {
+//            requestBluetoothScanPermission()
+//        }
 
         // Acquire the wake lock when the service is created
         acquireWakeLock()
@@ -84,7 +70,6 @@ class ConnectScreenService : LifecycleService() {
 
         bleManager = BleManager(applicationContext, deviceDataRepository)
 
-
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -94,18 +79,17 @@ class ConnectScreenService : LifecycleService() {
         acquireWakeLock()
 
         // Start BLE scanning
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (!isBleScanning) {
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+//            if (!isBleScanning) {
 //                startBleScan()
 //                bleManager.startBleScan()
-
-                isBleScanning = true
-            }
-        }
+//
+//                isBleScanning = true
+//            }
+//        }
 
         // Foreground Service를 시작합니다.
         startForeground(NOTIFICATION_ID, createNotification())
-
 
         return START_STICKY
     }
@@ -117,7 +101,7 @@ class ConnectScreenService : LifecycleService() {
         releaseWakeLock()
 
         // Stop BLE scanning
-        stopBleScan()
+//        stopBleScan()
     }
 
     private fun createNotification(): Notification {
