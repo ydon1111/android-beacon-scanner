@@ -18,7 +18,7 @@ data class DeviceRoomDataEntity(
     var manufacturerData: ByteArray?,
     var temperature: Int?,
     var bleDataCount: Int?,
-    var timestampNanos: String, // Add this field
+    var timestampNanos: String,
 
     @TypeConverters(Converter::class)
     val currentDateAndTime: String? = null,
@@ -28,6 +28,11 @@ data class DeviceRoomDataEntity(
     @ColumnInfo(name = "value_y")
     val valueY: Int?,
     @ColumnInfo(name = "value_z")
-    val valueZ: Int?
+    val valueZ: Int?,
+
+    @ColumnInfo(name = "rating")
+    val rating: Int?,
+
 
 ) : Parcelable
+

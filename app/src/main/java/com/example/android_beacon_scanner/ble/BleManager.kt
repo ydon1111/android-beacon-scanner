@@ -129,7 +129,8 @@ class BleManager @Inject constructor(
                             timestampNanos = formattedTimestamp,
                             valueX = valueX,
                             valueY = valueY,
-                            valueZ = valueZ
+                            valueZ = valueZ,
+                            rating = null,
                         )
 
                         MainScope().launch(Dispatchers.IO) {
@@ -259,83 +260,6 @@ class BleManager @Inject constructor(
         }
     }
 
-    @SuppressLint("MissingPermission")
-    fun getScanItem(scanResult: ScanResult?): DeviceRoomDataEntity? {
-        if (scanResult != null) {
-            val deviceName = scanResult.device.name
-            if (deviceName != null && deviceName.contains("M")) {
-                val manufacturerData = scanResult.scanRecord?.manufacturerSpecificData
-                if (manufacturerData != null && manufacturerData.containsKey(16505)) {
-                    val manufacturerDataValue = manufacturerData[16505]
-                    val manufacturerDataIntArray =
-                        manufacturerDataValue?.map { it.toInt() }?.toIntArray()
-
-                    Log.d("onScanResult", scanResult.toString())
-
-                    val temperature = manufacturerDataIntArray?.let {
-                        if (it.size >= 2) {
-                            it[it.size - 2] // Second-to-last number
-                        } else {
-                            null
-                        }
-                    }
-
-                    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-
-                    val timestampNano = scanResult.timestampNanos
-                    val formattedTimestamp =
-                        dateFormat.format(Date(timestampNano / 1000000L))
-
-                    val currentDateAndTime = Date()
-                    val formattedDate = dateFormat.format(currentDateAndTime)
-
-                    val startIndex = 0
-                    val step = 12
-                    val count = 18
-
-                    for (i in 0 until count) {
-                        val indexX = startIndex + i * step
-                        val indexY = (startIndex + 2) + i * step
-                        val indexZ = (startIndex + 4) + i * step
-
-                        val valueX = if (indexX < (manufacturerDataIntArray?.size ?: 0)) {
-                            manufacturerDataIntArray?.get(indexX) ?: 0
-                        } else {
-                            0
-                        }
-
-                        val valueY = if (indexY < (manufacturerDataIntArray?.size ?: 0)) {
-                            manufacturerDataIntArray?.get(indexY) ?: 0
-                        } else {
-                            0
-                        }
-
-                        val valueZ = if (indexZ < (manufacturerDataIntArray?.size ?: 0)) {
-                            manufacturerDataIntArray?.get(indexZ) ?: 0
-                        } else {
-                            0
-                        }
-                        // Create a DeviceRoomDataEntity instance
-                        val scanItem = DeviceRoomDataEntity(
-                            deviceName = deviceName,
-                            deviceAddress = scanResult.device.address ?: "null",
-                            manufacturerData = manufacturerData[16505],
-                            temperature = temperature,
-                            bleDataCount = bleDataCount,
-                            currentDateAndTime = formattedDate,
-                            timestampNanos = formattedTimestamp,
-                            valueX = valueX,
-                            valueY = valueY,
-                            valueZ = valueZ
-                        )
-                        return scanItem
-                    }
-                }
-            }
-        }
-        return null
-    }
-
     private var scanResultCallback: ((ScanResult) -> Unit)? = null
 
     fun setScanResultCallback(callback: (ScanResult) -> Unit) {
@@ -348,6 +272,7 @@ class BleManager @Inject constructor(
         // Initiate a connection to the selected beacon
         bleGatt = device.connectGatt(context, false, gattCallback)
     }
+
     companion object {
         // Define a constant for the maximum connection retries
         private const val MAX_CONNECTION_RETRIES = 3

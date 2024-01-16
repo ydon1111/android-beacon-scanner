@@ -79,4 +79,9 @@ class DeviceDataRepository @Inject constructor(private val deviceDataDao: Device
         }
     }
 
+    // Rating 값을 업데이트하는 함수 추가
+    suspend fun updateRating(deviceName: String, newRating: Int) {
+        deviceDataDao.updateRating(deviceName, newRating)
+    }
+
 }

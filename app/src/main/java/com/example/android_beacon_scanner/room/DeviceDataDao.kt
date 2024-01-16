@@ -12,7 +12,6 @@ interface DeviceDataDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDeviceData(deviceRoomData: DeviceRoomDataEntity)
 
-
     @Query("DELETE FROM device_data")
     suspend fun deleteAllDeviceData()
 
@@ -44,5 +43,11 @@ interface DeviceDataDao {
 
     @Query("SELECT * FROM device_data WHERE deviceName = :deviceName AND bleDataCount >= :bleCount")
     suspend fun getDeviceDataWithBleCountGreaterOrEqual(deviceName: String, bleCount: Int): List<DeviceRoomDataEntity>
+
+    // Rating 값을 업데이트하는 함수 추가
+    @Query("UPDATE device_data SET rating = :newRating WHERE deviceName = :deviceName")
+    suspend fun updateRating(deviceName: String, newRating: Int)
+
+
 
 }

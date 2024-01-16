@@ -4,19 +4,19 @@ import android.annotation.SuppressLint
 import android.os.Environment
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,16 +40,15 @@ import com.example.android_beacon_scanner.room.DeviceDataRepository
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -66,6 +65,9 @@ fun ConnectScreen(
     var latestDeviceData by remember {
         mutableStateOf<DeviceRoomDataEntity?>(null)
     }
+
+    // 이전의 통증 점수를 저장하는 변수 추가
+    var latestPainScore by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(deviceData?.deviceName) {
         Log.d("ConnectScreen", "LaunchedEffect started")
@@ -111,11 +113,11 @@ fun ConnectScreen(
         val fileWriter = FileWriter(filePath)
 
         // Write the CSV header (column names)
-        fileWriter.append("Temperature, BLE Data Count, Date and Time, AccX,AccY,AccZ\n")
+        fileWriter.append("Temperature, BLE Data Count, Date and Time, AccX,AccY,AccZ,Rating\n")
 
         // Write each data row to the CSV file
         for (data in dataToExport) {
-            fileWriter.append("${data.temperature}, ${data.bleDataCount}, ${data.currentDateAndTime}, ${data.valueX}, ${data.valueY}, ${data.valueZ}\n")
+            fileWriter.append("${data.temperature}, ${data.bleDataCount}, ${data.currentDateAndTime}, ${data.valueX}, ${data.valueY}, ${data.valueZ},${data.rating}\n")
         }
 
         // Close the file writer
@@ -125,8 +127,7 @@ fun ConnectScreen(
         showToast = true
     }
 
-    var painRating by remember { mutableIntStateOf(0) }
-    val additionalInfo by remember { mutableStateOf("") }
+    var painRating by remember { mutableStateOf<Int?>(null) }
 
     // NRS 차트 데이터 관련 상태 변수
     var nrsData by remember { mutableStateOf<List<Pair<Int, String>>>(emptyList()) }
@@ -140,7 +141,7 @@ fun ConnectScreen(
     fun updateNrsData() {
         nrsData = nrsData.map { (rating, _) ->
             if (rating == painRating) {
-                Pair(rating, additionalInfo)
+                Pair(rating, "")
             } else {
                 nrsData[rating]
             }
@@ -158,7 +159,8 @@ fun ConnectScreen(
         showToast = false // Reset the flag
     }
 
-    val scroll = rememberScrollState(0)
+    // NRSChartItem에서 사용할 latestDeviceData를 정의하고 전달
+    val latestDeviceDataForNrsChartItem = latestDeviceData
 
     Column(
         Modifier
@@ -210,6 +212,17 @@ fun ConnectScreen(
                 )
             )
 
+            // Latest Pain Score (이전 값이 null이 아니면 이전 값 사용)
+            if (latestDeviceData!!.rating != null) {
+                painRating = latestDeviceData!!.rating
+            }
+            Text(
+                text = "Latest Pain Score: $latestPainScore",
+                style = TextStyle(
+                    fontSize = 14.sp,
+                )
+            )
+
             Text(
                 text = "Latest BLE Data Count: ${latestDeviceData!!.bleDataCount}",
                 style = TextStyle(
@@ -223,8 +236,9 @@ fun ConnectScreen(
                     fontSize = 14.sp,
                 )
             )
-        }
 
+            latestPainScore = painRating
+        }
         // NRS 차트
         Text(
             text = "NRS Chart",
@@ -236,23 +250,23 @@ fun ConnectScreen(
 
         // Display the NRS Chart vertically
         NrsChart(
-            nrsData = nrsData,
+            latestDeviceData = latestDeviceDataForNrsChartItem, // latestDeviceData 전달
             onRatingChange = { newRating ->
                 painRating = newRating
                 updateNrsData()
             },
-            onInfoChange = { newInfo ->
-                // 여기에 정보 업데이트 로직 추가
-            }
+            coroutineScope = coroutineScope,
+            deviceDataRepository= deviceDataRepository
         )
     }
 }
 
 @Composable
 fun NrsChart(
-    nrsData: List<Pair<Int, String>>,
+    latestDeviceData: DeviceRoomDataEntity?,
     onRatingChange: (Int) -> Unit,
-    onInfoChange: (String) -> Unit
+    coroutineScope: CoroutineScope,
+    deviceDataRepository: DeviceDataRepository
 ) {
     // Using a vertical column to display the NRS chart items vertically
     Column(
@@ -260,12 +274,13 @@ fun NrsChart(
             .fillMaxWidth()
     ) {
         // Ensure that we have data for 0 to 11
-        (0..11).forEach { i ->
+        (0..10).forEach { i ->
             NrsChartItem(
                 rating = i,
-                info = nrsData.getOrNull(i)?.second ?: "",
+                latestDeviceData = latestDeviceData, // latestDeviceData를 전달
                 onRatingChange = onRatingChange,
-                onInfoChange = onInfoChange
+                coroutineScope = coroutineScope,
+                deviceDataRepository = deviceDataRepository// coroutineScope를 전달
             )
         }
     }
@@ -274,20 +289,29 @@ fun NrsChart(
 @Composable
 fun NrsChartItem(
     rating: Int,
-    info: String,
+    latestDeviceData: DeviceRoomDataEntity?,
     onRatingChange: (Int) -> Unit,
-    onInfoChange: (String) -> Unit
+    coroutineScope: CoroutineScope,
+    deviceDataRepository: DeviceDataRepository
+
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(4.dp) // 패딩을 조절할 수 있습니다.
+    val showDialog = remember { mutableStateOf(false) }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier
+            .fillMaxWidth() // 수평으로 전체 너비를 차지하도록 합니다.
+            .padding(4.dp) // 패딩을 조절할 수 있습니다.
     ) {
         Button(
-            onClick = { onRatingChange(rating) },
+            onClick = {
+                // 사용자에게 확인 팝업을 보여줍니다.
+                showDialog.value = true
+            },
             modifier = Modifier
-                .fillMaxWidth()
-                .width(40.dp) // 버튼의 너비를 조절할 수 있습니다.
-                .height(40.dp) // 버튼의 높이를 조절할 수 있습니다.
+                .height(45.dp) // 버튼 높이를 조정합니다.
+                .fillMaxWidth(0.5f) // 버튼 너비도 조정합니다.
         ) {
             Text(
                 text = "$rating",
@@ -295,6 +319,66 @@ fun NrsChartItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(fontSize = 16.sp) // 텍스트 크기를 조절할 수 있습니다.
+            )
+        }
+
+        // 통증 강도 설명 텍스트 추가
+        Text(
+            text = when (rating) {
+                0 -> "무 통증"
+                1 -> "약간 통증"
+                2 -> "약간 이상의 통증"
+                3 -> "보통 통증"
+                4 -> "보통 이상의 통증"
+                5 -> "중간 통증"
+                6 -> "중간 이상의 통증"
+                7 -> "강한 통증"
+                8 -> "강한 이상의 통증"
+                9 -> "매우 강한 통증"
+                10 -> "극심한 통증"
+                else -> ""
+            },
+            textAlign = TextAlign.Center,
+            style = TextStyle(fontSize = 16.sp) // 텍스트 크기를 조절할 수 있습니다.
+        )
+
+        // 확인 팝업 창
+        if (showDialog.value) {
+            AlertDialog(
+                onDismissRequest = { showDialog.value = false },
+                title = {
+                    Text(text = "$rating 등급 확인")
+                },
+                text = {
+                    Text(text = "이 등급을 선택하시겠습니까?")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            // 사용자가 확인 버튼을 누르면 업데이트
+                            onRatingChange(rating)
+                            showDialog.value = false
+
+                            // Room 데이터베이스 업데이트
+                            latestDeviceData?.let { deviceData ->
+                                coroutineScope.launch {
+                                    deviceDataRepository.updateRating(deviceData.deviceName, rating)
+                                }
+                            }
+                        }
+                    ) {
+                        Text(text = "확인")
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = {
+                            showDialog.value = false
+                        }
+                    ) {
+                        Text(text = "취소")
+                    }
+                }
             )
         }
     }
