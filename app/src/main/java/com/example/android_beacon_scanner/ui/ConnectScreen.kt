@@ -4,32 +4,24 @@ import android.annotation.SuppressLint
 import android.os.Environment
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Divider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +42,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
 import kotlinx.coroutines.launch
 import java.io.FileWriter
@@ -241,7 +234,7 @@ fun ConnectScreen(
             )
         )
 
-        // Display the NRS Chart at the bottom
+        // Display the NRS Chart vertically
         NrsChart(
             nrsData = nrsData,
             onRatingChange = { newRating ->
@@ -261,24 +254,19 @@ fun NrsChart(
     onRatingChange: (Int) -> Unit,
     onInfoChange: (String) -> Unit
 ) {
+    // Using a vertical column to display the NRS chart items vertically
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .wrapContentHeight() // Adjust height to content
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            for ((rating, info) in nrsData) {
-                NrsChartItem(
-                    rating = rating,
-                    info = info,
-                    onRatingChange = onRatingChange,
-                    onInfoChange = onInfoChange
-                )
-                Divider()
-            }
+        // Ensure that we have data for 0 to 11
+        (0..11).forEach { i ->
+            NrsChartItem(
+                rating = i,
+                info = nrsData.getOrNull(i)?.second ?: "",
+                onRatingChange = onRatingChange,
+                onInfoChange = onInfoChange
+            )
         }
     }
 }
@@ -290,73 +278,25 @@ fun NrsChartItem(
     onRatingChange: (Int) -> Unit,
     onInfoChange: (String) -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-        Text(
-            text = "Pain Rating $rating:",
-            style = TextStyle(
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            ),
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
-
-        // Arrange buttons in two rows
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                for (i in 0..5) { // First row of buttons from 0 to 5
-                    Button(
-                        onClick = { onRatingChange(i) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(4.dp)
-                    ) {
-                        Text(text = "$i", textAlign = TextAlign.Center)
-                    }
-                }
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                for (i in 6..10) { // Second row of buttons from 6 to 10
-                    Button(
-                        onClick = { onRatingChange(i) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(4.dp)
-                    ) {
-                        Text(text = "$i", textAlign = TextAlign.Center)
-                    }
-                }
-            }
-        }
-
-        BasicTextField(
-            value = info,
-            onValueChange = onInfoChange,
-            keyboardOptions = KeyboardOptions.Default.copy(
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    // Handle the Done action of the keyboard
-                }
-            ),
-            textStyle = TextStyle(
-                fontSize = 5.sp
-            ),
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(4.dp) // 패딩을 조절할 수 있습니다.
+    ) {
+        Button(
+            onClick = { onRatingChange(rating) },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(4.dp)
-        )
+                .width(40.dp) // 버튼의 너비를 조절할 수 있습니다.
+                .height(40.dp) // 버튼의 높이를 조절할 수 있습니다.
+        ) {
+            Text(
+                text = "$rating",
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(fontSize = 16.sp) // 텍스트 크기를 조절할 수 있습니다.
+            )
+        }
     }
 }
 
