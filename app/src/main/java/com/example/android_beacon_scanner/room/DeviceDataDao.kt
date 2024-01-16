@@ -42,12 +42,14 @@ interface DeviceDataDao {
     ): List<DeviceRoomDataEntity>
 
     @Query("SELECT * FROM device_data WHERE deviceName = :deviceName AND bleDataCount >= :bleCount")
-    suspend fun getDeviceDataWithBleCountGreaterOrEqual(deviceName: String, bleCount: Int): List<DeviceRoomDataEntity>
+    suspend fun getDeviceDataWithBleCountGreaterOrEqual(
+        deviceName: String,
+        bleCount: Int
+    ): List<DeviceRoomDataEntity>
 
     // Rating 값을 업데이트하는 함수 추가
-    @Query("UPDATE device_data SET rating = :newRating WHERE deviceName = :deviceName")
-    suspend fun updateRating(deviceName: String, newRating: Int)
-
+    @Query("UPDATE device_data SET rating = :newRating WHERE deviceName = :deviceName AND currentDateAndTime IN (SELECT currentDateAndTime FROM device_data WHERE deviceName = :deviceName ORDER BY currentDateAndTime DESC LIMIT 18)")
+    suspend fun updateLatest18Ratings(deviceName: String, newRating: Int)
 
 
 }
