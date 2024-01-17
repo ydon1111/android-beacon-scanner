@@ -219,7 +219,7 @@ class BleManager @Inject constructor(
 
             val scanSettings =
                 ScanSettings.Builder()
-                    .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+                    .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                     .setLegacy(false)
                     .build()
 

@@ -4,25 +4,19 @@ import android.annotation.SuppressLint
 import android.os.Environment
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -33,8 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.example.android_beacon_scanner.BleInterface
-import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 
 import androidx.compose.runtime.mutableStateListOf
@@ -42,9 +34,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.navigation.compose.rememberNavController
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -71,7 +65,7 @@ fun ConnectScreen(
         val latestDataFlow =
             deviceDataRepository.observeLatestDeviceData(deviceData?.deviceName ?: "")
         latestDataFlow.collect { updatedDeviceData ->
-            Log.d("ConnectScreen", "Latest data received: $updatedDeviceData")
+//            Log.d("ConnectScreen", "Latest data received: $updatedDeviceData")
             latestDeviceData = updatedDeviceData
         }
     }
@@ -94,12 +88,25 @@ fun ConnectScreen(
 
     var showToast by remember { mutableStateOf(false) }
 
+    var dataCount by remember { mutableStateOf(0) }
+
+    // CSV 다운로드 버튼을 눌렀을 때 호출되는 함수
     fun exportDataToCsv(dataToExport: List<DeviceRoomDataEntity>) {
         val currentTime =
             SimpleDateFormat("yyyy_MM_dd_HH.mm.ss", Locale.getDefault()).format(Date())
-        val filePath =
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)?.absolutePath + "/$currentTime.csv"
 
+        val downloadsDir =
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val dirPath = "$downloadsDir/서울아산병원"
+
+// 디렉토리가 존재하지 않으면 생성합니다.
+        val dir = File(dirPath)
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+
+// 파일 경로 생성
+        val filePath = "$dirPath/$currentTime.csv"
         // Open a file writer
         val fileWriter = FileWriter(filePath)
 
@@ -107,7 +114,8 @@ fun ConnectScreen(
         fileWriter.append("Temperature, BLE Data Count, Date and Time, AccX,AccY,AccZ,Rating\n")
 
         // Write each data row to the CSV file
-        for (data in dataToExport) {
+        for (i in 0 until dataCount) { // 0부터 dataCount까지의 데이터만을 가져와서 CSV로 내보냅니다.
+            val data = dataToExport[i]
             fileWriter.append("${data.temperature}, ${data.bleDataCount}, ${data.currentDateAndTime}, ${data.valueX}, ${data.valueY}, ${data.valueZ},${data.rating}\n")
         }
 
@@ -153,6 +161,9 @@ fun ConnectScreen(
     // NRSChartItem에서 사용할 latestDeviceData를 정의하고 전달
     val latestDeviceDataForNrsChartItem = latestDeviceData
 
+    // Remember the NavController
+    val rememberNavController = rememberNavController()
+
     Column(
         Modifier
             .fillMaxSize()
@@ -165,7 +176,7 @@ fun ConnectScreen(
         ) {
             Text(
                 modifier = Modifier.align(Alignment.CenterVertically),
-                text = deviceData?.deviceName ?: "Null",
+                text = "서울아산병원 보조기",
                 style = TextStyle(
                     fontSize = 25.sp,
                     fontWeight = FontWeight.SemiBold
@@ -178,8 +189,11 @@ fun ConnectScreen(
                         val dataToExport =
                             deviceDataRepository.getDeviceDataWithBleCountGreaterOrEqual(
                                 deviceData?.deviceName ?: "",
-                                0 // Start from 0
+                                dataCount
                             )
+
+                        // Update dataCount with the current data size
+                        dataCount = dataToExport.size
 
                         // Export data to CSV file
                         if (dataToExport.isNotEmpty()) {
@@ -188,7 +202,7 @@ fun ConnectScreen(
                     }
                 },
                 modifier = Modifier
-                    .padding(16.dp)
+                    .padding(4.dp)
             ) {
                 Text(text = "CSV 다운로드")
             }
@@ -197,7 +211,7 @@ fun ConnectScreen(
         // Latest 데이터
         if (latestDeviceData != null) {
             Text(
-                text = "Latest Temperature: ${latestDeviceData!!.temperature}",
+                text = "최근 측정 온도: ${latestDeviceData!!.temperature}",
                 style = TextStyle(
                     fontSize = 14.sp,
                 )
@@ -208,21 +222,21 @@ fun ConnectScreen(
                 painRating = latestDeviceData!!.rating
             }
             Text(
-                text = "Latest Pain Score: $latestPainScore",
+                text = "최근 측정 통증 정도: $latestPainScore",
                 style = TextStyle(
                     fontSize = 14.sp,
                 )
             )
 
             Text(
-                text = "Latest BLE Data Count: ${latestDeviceData!!.bleDataCount}",
+                text = "데이터 수집 횟수: ${latestDeviceData!!.bleDataCount}",
                 style = TextStyle(
                     fontSize = 14.sp,
                 )
             )
 
             Text(
-                text = "Latest Date and Time: ${latestDeviceData!!.currentDateAndTime}",
+                text = "최근 데이터 수집 시간: ${latestDeviceData!!.currentDateAndTime}",
                 style = TextStyle(
                     fontSize = 14.sp,
                 )
@@ -247,8 +261,9 @@ fun ConnectScreen(
                 updateNrsData()
             },
             coroutineScope = coroutineScope,
-            deviceDataRepository = deviceDataRepository
-        )
+            deviceDataRepository = deviceDataRepository,
+
+            )
     }
 }
 

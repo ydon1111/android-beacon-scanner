@@ -82,21 +82,22 @@ class ConnectScreenService : LifecycleService() {
             ""
         }
 
-        // ConnectScreen으로 이동하는 Intent 생성
-        val connectScreenIntent = Intent(applicationContext, ConnectScreenActivity::class.java)
-        // Add your data as extras to the Intent
-        connectScreenIntent.putExtra("deviceData", deviceData)
+        val connectScreenIntent = Intent(applicationContext, MainActivity::class.java)
+        connectScreenIntent.action = "android.intent.action.MAIN"
+        connectScreenIntent.addCategory("android.intent.category.LAUNCHER")
 
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             PendingIntent.FLAG_MUTABLE // Android 12 이상에서는 FLAG_MUTABLE을 사용합니다.
         } else {
             0
         }
-        val pendingIntent = PendingIntent.getActivity(this, 0, connectScreenIntent, flags)
+        // PendingIntent를 업데이트하고 FLAG_UPDATE_CURRENT 플래그를 사용합니다.
+        val pendingIntent = PendingIntent.getActivity(this, 0, connectScreenIntent, flags or PendingIntent.FLAG_UPDATE_CURRENT)
+
 
         return NotificationCompat.Builder(this, notificationChannelId)
-            .setContentTitle("관절 보정기 앱")
-            .setContentText("서울아산병원 보정기 앱이 동작중 입니다")
+            .setContentTitle("서울아산병원 보조기앱")
+            .setContentText("서울아산병원 보조기앱이 동작중 입니다")
             .setSmallIcon(R.drawable.baseline_local_hospital_24)
             .setOngoing(false)  // This makes the notification ongoing
             .setContentIntent(pendingIntent) // PendingIntent 설정

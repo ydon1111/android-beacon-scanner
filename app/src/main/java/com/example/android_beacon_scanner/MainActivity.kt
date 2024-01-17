@@ -52,18 +52,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // PowerManager 초기화
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-
-
-
-
-        // PARTIAL_WAKE_LOCK을 사용하여 화면이 꺼진 상태에서도 CPU를 유지
-        wakeLock = powerManager.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "YourApp::WakeLockTag"
-        )
-
         val serviceIntent = Intent(this, ConnectScreenService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent)
@@ -77,7 +65,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // always screen on
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+//        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         setContent {
             AndroidbeaconscannerTheme {
@@ -104,7 +92,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-
         if (Build.VERSION.SDK_INT >= 31) {
             if (permissionArray.all {
                     ContextCompat.checkSelfPermission(
@@ -119,20 +106,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
-
     override fun onResume() {
         super.onResume()
-
-        // Wake Lock 획득
-        wakeLock?.acquire(Long.MAX_VALUE)
     }
 
     override fun onPause() {
         super.onPause()
-
         // Wake Lock 해제
-        wakeLock?.release()
     }
 
     private val permissionArray =

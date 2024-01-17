@@ -125,8 +125,6 @@ fun ScanList(
     navController: NavHostController,
     scanList: SnapshotStateList<DeviceRoomDataEntity>,
 ) {
-    Log.d("ScanList", "ScanList Size: ${scanList.size}")
-
     val uniqueDeviceNames = scanList.distinctBy { it.deviceName }
     val visibleDevices =
         rememberUpdatedState(uniqueDeviceNames) // Remember the list of visible devices
@@ -182,7 +180,7 @@ fun ScanItem(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "서울아산병원 보정기 (${deviceData.deviceName})",
+                    text = "서울아산병원 보조기 (${deviceData.deviceName})",
                     style = ScanItemTypography.bodySmall.copy(
                         fontSize = 20.sp // 큰 글꼴 크기로 조절
                     )
