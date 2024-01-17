@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">android-beacon-scanner</string>
+    <string name="app_name">서울아산병원 관절 보정기 앱</string>
 
     <string name="show_less">Show less</string>
     <string name="show_more">Show more</string>
-    <string name="scan">scan</string>
-    <string name="stop">stop</string>
+    <string name="scan">보정기 센서 찾기</string>
+    <string name="stop">중지</string>
 </resources>

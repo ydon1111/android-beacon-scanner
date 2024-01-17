@@ -19,12 +19,11 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.core.util.containsKey
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -34,13 +33,12 @@ import javax.inject.Singleton
 
 @Singleton
 class BleManager @Inject constructor(
-    private val context: Context, private val deviceDataRepository: DeviceDataRepository
+    private val context: Context, private val deviceDataRepository: DeviceDataRepository,
 ) {
     private val bluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter = bluetoothManager.adapter
     private val bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
-    private var scanList: SnapshotStateList<DeviceRoomDataEntity>? = null
     private var connectedStateObserver: BleInterface? = null
     var bleGatt: BluetoothGatt? = null
 
@@ -137,7 +135,7 @@ class BleManager @Inject constructor(
                             deviceDataRepository.insertDeviceData(scanItem)
                         }
 
-                        scanList?.add(scanItem)
+                        _scanList.value.add(scanItem)
                     }
                     bleDataCount++
                 }
@@ -152,7 +150,7 @@ class BleManager @Inject constructor(
     private val gattCallback = object : BluetoothGattCallback() {
         @SuppressLint("MissingPermission")
         override fun onConnectionStateChange(
-            gatt: BluetoothGatt?, status: Int, newState: Int
+            gatt: BluetoothGatt?, status: Int, newState: Int,
         ) {
             super.onConnectionStateChange(gatt, status, newState)
 
@@ -217,7 +215,7 @@ class BleManager @Inject constructor(
     @SuppressLint("MissingPermission")
     fun startBleScan() {
         if (!isScanning) { // 스캔 중이 아닌 경우에만 시작
-            scanList?.clear()
+            _scanList.value.clear()
 
             val scanSettings =
                 ScanSettings.Builder()
@@ -236,6 +234,7 @@ class BleManager @Inject constructor(
             filters.add(scanFilter)
 
             bluetoothLeScanner.startScan(filters, scanSettings, scanCallback)
+
         }
     }
 
@@ -244,8 +243,11 @@ class BleManager @Inject constructor(
         bluetoothLeScanner.stopScan(scanCallback)
     }
 
-    fun setScanList(pScanList: SnapshotStateList<DeviceRoomDataEntity>) {
-        scanList = pScanList
+    // Inject the _scanList from the ViewModel
+    private lateinit var _scanList: MutableStateFlow<SnapshotStateList<DeviceRoomDataEntity>>
+
+    fun setScanList(scanList: MutableStateFlow<SnapshotStateList<DeviceRoomDataEntity>>) {
+        _scanList = scanList
     }
 
     fun onConnectedStateObserve(pConnectedStateObserver: BleInterface) {
@@ -277,9 +279,7 @@ class BleManager @Inject constructor(
         // Define a constant for the maximum connection retries
         private const val MAX_CONNECTION_RETRIES = 3
     }
-
 }
-
 
 
 

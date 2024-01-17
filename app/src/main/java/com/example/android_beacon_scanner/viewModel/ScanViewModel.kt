@@ -1,37 +1,48 @@
 package com.example.android_beacon_scanner.viewModel
 
+import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
-import kotlinx.coroutines.flow.Flow
+import com.example.android_beacon_scanner.ui.checkPermission
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 class ScanViewModel(
     private val bleManager: BleManager,
-    private val deviceDataRepository: DeviceDataRepository
+    private val deviceDataRepository: DeviceDataRepository,
 ) : ViewModel() {
-    // LiveData를 사용하여 스캔 결과를 저장
-    private val _scanList = MutableLiveData<List<DeviceRoomDataEntity>>()
-    val scanList: LiveData<List<DeviceRoomDataEntity>> = _scanList
 
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning: StateFlow<Boolean> = _isScanning
 
-    // BLE 스캔을 시작하는 함수
+    private val _scanList = MutableStateFlow(SnapshotStateList<DeviceRoomDataEntity>())
+    val scanList: StateFlow<SnapshotStateList<DeviceRoomDataEntity>> = _scanList
+
+    init {
+        // Inject the scanList from the ViewModel into the BleManager
+        bleManager.setScanList(_scanList)
+    }
+
     @RequiresApi(Build.VERSION_CODES.O)
-    fun startBleScan() {
-        bleManager.startBleScan()
-    }
-
-    // BLE 스캔을 중지하는 함수
-    fun stopBleScan() {
-        bleManager.stopBleScan()
-    }
-
-    // BLE 스캔 결과를 업데이트하는 함수
-    fun updateScanResults(results: List<DeviceRoomDataEntity>) {
-        _scanList.postValue(results)
+    fun toggleScan(context: Context) {
+        viewModelScope.launch {
+            if (!_isScanning.value) {
+                if (checkPermission(context)) {
+                    bleManager.startBleScan()
+                } else {
+                    // Handle permission denial
+                }
+            } else {
+                bleManager.stopBleScan()
+            }
+            _isScanning.value = !_isScanning.value
+        }
     }
 }

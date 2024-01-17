@@ -26,10 +26,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.android_beacon_scanner.room.DeviceDataRepository
+import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
 import com.example.android_beacon_scanner.ui.ConnectScreen
 import com.example.android_beacon_scanner.ui.ScanScreen
 import com.example.android_beacon_scanner.ui.theme.AndroidbeaconscannerTheme
 import com.example.android_beacon_scanner.service.ConnectScreenService
+import com.example.android_beacon_scanner.viewModel.ScanViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -42,6 +44,7 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var deviceDataRepository: DeviceDataRepository // DeviceDataRepository 주입
 
+
     private var wakeLock: PowerManager.WakeLock? = null
 
     // onCreate 메서드
@@ -51,6 +54,9 @@ class MainActivity : ComponentActivity() {
 
         // PowerManager 초기화
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+
+
+
 
         // PARTIAL_WAKE_LOCK을 사용하여 화면이 꺼진 상태에서도 CPU를 유지
         wakeLock = powerManager.newWakeLock(
@@ -70,7 +76,6 @@ class MainActivity : ComponentActivity() {
             requestAppWhitelisting()
         }
 
-
         // always screen on
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
@@ -82,15 +87,16 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
 
+
+
                     NavHost(navController = navController, startDestination = "ScanScreen") {
                         composable(route = "ScanScreen") {
-                            ScanScreen(navController, bleManager)
+                            ScanScreen(navController, ScanViewModel(bleManager, deviceDataRepository))
                         }
                         composable(route = "ConnectScreen") {
                             ConnectScreen(
                                 navController,
-                                bleManager,
-                                deviceDataRepository
+                                deviceDataRepository,
                             )
                         }
                     }
@@ -112,6 +118,8 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+
 
     override fun onResume() {
         super.onResume()

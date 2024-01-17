@@ -54,20 +54,17 @@ import java.util.Locale
 @Composable
 fun ConnectScreen(
     navController: NavHostController,
-    bleManager: BleManager,
     deviceDataRepository: DeviceDataRepository,
 ) {
-    val deviceData =
-        navController.previousBackStackEntry?.savedStateHandle?.get<DeviceRoomDataEntity>("deviceData")
-    val isConnecting = remember { mutableStateOf(false) }
-    val connectedData = remember { mutableStateOf("") }
-
     var latestDeviceData by remember {
         mutableStateOf<DeviceRoomDataEntity?>(null)
     }
 
     // 이전의 통증 점수를 저장하는 변수 추가
     var latestPainScore by remember { mutableStateOf<Int?>(null) }
+
+    val deviceData =
+        navController.previousBackStackEntry?.savedStateHandle?.get<DeviceRoomDataEntity>("deviceData")
 
     LaunchedEffect(deviceData?.deviceName) {
         Log.d("ConnectScreen", "LaunchedEffect started")
@@ -91,12 +88,6 @@ fun ConnectScreen(
         updatedAccZValues.addAll(listOf(latestDeviceData!!.valueZ))
     }
 
-    bleManager.onConnectedStateObserve(object : BleInterface {
-        override fun onConnectedStateObserve(isConnected: Boolean, data: String) {
-            isConnecting.value = isConnected
-            connectedData.value = connectedData.value + "\n" + data
-        }
-    })
 
     // Create a coroutine scope
     val coroutineScope = rememberCoroutineScope()
@@ -256,7 +247,7 @@ fun ConnectScreen(
                 updateNrsData()
             },
             coroutineScope = coroutineScope,
-            deviceDataRepository= deviceDataRepository
+            deviceDataRepository = deviceDataRepository
         )
     }
 }
@@ -266,7 +257,7 @@ fun NrsChart(
     latestDeviceData: DeviceRoomDataEntity?,
     onRatingChange: (Int) -> Unit,
     coroutineScope: CoroutineScope,
-    deviceDataRepository: DeviceDataRepository
+    deviceDataRepository: DeviceDataRepository,
 ) {
     // Using a vertical column to display the NRS chart items vertically
     Column(
@@ -292,9 +283,9 @@ fun NrsChartItem(
     latestDeviceData: DeviceRoomDataEntity?,
     onRatingChange: (Int) -> Unit,
     coroutineScope: CoroutineScope,
-    deviceDataRepository: DeviceDataRepository
+    deviceDataRepository: DeviceDataRepository,
 
-) {
+    ) {
     val showDialog = remember { mutableStateOf(false) }
 
     Row(

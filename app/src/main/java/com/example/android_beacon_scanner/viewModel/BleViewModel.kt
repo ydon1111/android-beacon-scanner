@@ -1,4 +1,4 @@
-package com.example.android_beacon_scanner.ble
+package com.example.android_beacon_scanner.viewModel
 
 
 import androidx.lifecycle.ViewModel
