@@ -1,9 +1,12 @@
 package com.example.android_beacon_scanner.ui
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.os.Build
 import android.os.Environment
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.navigation.compose.rememberNavController
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
+import com.example.android_beacon_scanner.service.ConnectScreenService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.io.File
@@ -44,12 +48,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("MissingPermission")
 @Composable
 fun ConnectScreen(
     navController: NavHostController,
     deviceDataRepository: DeviceDataRepository,
 ) {
+
+
     var latestDeviceData by remember {
         mutableStateOf<DeviceRoomDataEntity?>(null)
     }
@@ -82,7 +89,6 @@ fun ConnectScreen(
         updatedAccZValues.addAll(listOf(latestDeviceData!!.valueZ))
     }
 
-
     // Create a coroutine scope
     val coroutineScope = rememberCoroutineScope()
 
@@ -99,7 +105,6 @@ fun ConnectScreen(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         val dirPath = "$downloadsDir/서울아산병원"
 
-// 디렉토리가 존재하지 않으면 생성합니다.
         val dir = File(dirPath)
         if (!dir.exists()) {
             dir.mkdirs()
@@ -136,6 +141,7 @@ fun ConnectScreen(
         nrsData = List(11) { index -> Pair(index, "") }
     }
 
+
     // NRS 차트 데이터 업데이트 함수
     fun updateNrsData() {
         nrsData = nrsData.map { (rating, _) ->
@@ -163,6 +169,7 @@ fun ConnectScreen(
 
     // Remember the NavController
     val rememberNavController = rememberNavController()
+
 
     Column(
         Modifier
@@ -206,6 +213,8 @@ fun ConnectScreen(
             ) {
                 Text(text = "CSV 다운로드")
             }
+
+
         }
 
         // Latest 데이터

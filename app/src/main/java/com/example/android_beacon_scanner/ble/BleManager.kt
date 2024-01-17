@@ -223,6 +223,7 @@ class BleManager @Inject constructor(
                     .setLegacy(false)
                     .build()
 
+
             val filters = mutableListOf<ScanFilter>()
             // 스캔 필터 생성
             val scanFilter = ScanFilter.Builder().run {

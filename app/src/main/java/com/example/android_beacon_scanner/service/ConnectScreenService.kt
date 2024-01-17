@@ -67,13 +67,20 @@ class ConnectScreenService : LifecycleService() {
         return START_STICKY
     }
 
+
+    private fun stopForegroundService() {
+        val serviceIntent = Intent(this, ConnectScreenService::class.java)
+        stopService(serviceIntent)
+    }
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onDestroy() {
         super.onDestroy()
         // Release the acquired wake lock when the service is destroyed
         releaseWakeLock()
-    }
 
+        // Stop the foreground service when the service is destroyed
+        stopForeground(true)
+    }
     private fun createNotification(deviceData: DeviceRoomDataEntity?): Notification {
 
         val notificationChannelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

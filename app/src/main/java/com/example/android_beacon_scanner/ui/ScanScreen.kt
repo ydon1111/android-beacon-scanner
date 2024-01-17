@@ -5,7 +5,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
@@ -85,6 +84,17 @@ fun ScanButton(
         ActivityResultContracts.RequestMultiplePermissions()
     ) {
         // todo: 권한 결과 처리
+    }
+
+    // 앱이 실행될 때 자동으로 스캔 시작
+    LaunchedEffect(Unit) {
+        if (!isScanning) {
+            if (checkPermission(context)) {
+                viewModel.toggleScan(context)
+            } else {
+                launcher.launch(permissionArray)
+            }
+        }
     }
 
     Button(
