@@ -1,7 +1,6 @@
 package com.example.android_beacon_scanner.ui
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.os.Build
 import android.os.Environment
 import android.util.Log
@@ -10,6 +9,7 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,8 +38,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.navigation.compose.rememberNavController
+import com.example.android_beacon_scanner.BleManager
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
-import com.example.android_beacon_scanner.service.ConnectScreenService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.io.File
@@ -54,8 +54,8 @@ import java.util.Locale
 fun ConnectScreen(
     navController: NavHostController,
     deviceDataRepository: DeviceDataRepository,
+    bleManager: BleManager,
 ) {
-
 
     var latestDeviceData by remember {
         mutableStateOf<DeviceRoomDataEntity?>(null)
@@ -110,7 +110,7 @@ fun ConnectScreen(
             dir.mkdirs()
         }
 
-// 파일 경로 생성
+        // 파일 경로 생성
         val filePath = "$dirPath/$currentTime.csv"
         // Open a file writer
         val fileWriter = FileWriter(filePath)
@@ -141,7 +141,6 @@ fun ConnectScreen(
         nrsData = List(11) { index -> Pair(index, "") }
     }
 
-
     // NRS 차트 데이터 업데이트 함수
     fun updateNrsData() {
         nrsData = nrsData.map { (rating, _) ->
@@ -170,25 +169,31 @@ fun ConnectScreen(
     // Remember the NavController
     val rememberNavController = rememberNavController()
 
+    // State variable to control the confirmation dialog
+    var showCancelConfirmationDialog by remember { mutableStateOf(false) }
 
     Column(
         Modifier
             .fillMaxSize()
             .padding(10.dp)
     ) {
-        // Device Name 및 CSV 다운로드 버튼
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                modifier = Modifier.align(Alignment.CenterVertically),
-                text = "서울아산병원 보조기",
-                style = TextStyle(
-                    fontSize = 25.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+        // Device Name
+        Text(
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+            text = "서울아산병원 보조기",
+            style = TextStyle(
+                fontSize = 25.sp,
+                fontWeight = FontWeight.SemiBold
             )
+        )
+
+        // CSV 다운로드 및 데이터 수집 버튼
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
             Button(
                 onClick = {
                     // When the button is pressed, fetch all data from 0 to the current count
@@ -213,9 +218,19 @@ fun ConnectScreen(
             ) {
                 Text(text = "CSV 다운로드")
             }
-
-
+            Button(
+                onClick = {
+                    // 버튼을 클릭하면 BLE 스캔을 취소합니다.
+                    bleManager.stopBleScan()
+                    showCancelConfirmationDialog = true
+                },
+                modifier = Modifier
+                    .padding(4.dp)
+            ) {
+                Text(text = "데이터 수집 취소")
+            }
         }
+
 
         // Latest 데이터
         if (latestDeviceData != null) {
@@ -271,8 +286,61 @@ fun ConnectScreen(
             },
             coroutineScope = coroutineScope,
             deviceDataRepository = deviceDataRepository,
+        )
+    }
 
-            )
+    // Add a Spacer to create some space between the content above and the buttons below
+    Spacer(modifier = Modifier.height(16.dp))
+
+    // Confirmation dialog for canceling data collection
+    ConfirmationDialog(
+        showDialog = showCancelConfirmationDialog,
+        onConfirm = {
+            // User confirmed, navigate to ScanScreen
+            navController.navigate("ScanScreen") // Adjust the destination route as needed
+        },
+        onDismiss = {
+            // Dialog dismissed or canceled
+            showCancelConfirmationDialog = false
+        }
+    )
+}
+
+@Composable
+fun ConfirmationDialog(
+    showDialog: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { onDismiss() },
+            title = {
+                Text(text = "데이터 수집 취소")
+            },
+            text = {
+                Text(text = "정말로 데이터 수집을 취소하시겠습니까?")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onConfirm()
+                        onDismiss()
+                    }
+                ) {
+                    Text(text = "확인")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        onDismiss()
+                    }
+                ) {
+                    Text(text = "취소")
+                }
+            }
+        )
     }
 }
 
@@ -311,7 +379,6 @@ fun NrsChartItem(
 
     ) {
     val showDialog = remember { mutableStateOf(false) }
-
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -325,7 +392,7 @@ fun NrsChartItem(
                 showDialog.value = true
             },
             modifier = Modifier
-                .height(45.dp) // 버튼 높이를 조정합니다.
+                .height(40.dp) // 버튼 높이를 조정합니다.
                 .fillMaxWidth(0.5f) // 버튼 너비도 조정합니다.
         ) {
             Text(
@@ -365,7 +432,7 @@ fun NrsChartItem(
                     Text(text = "$rating 등급 확인")
                 },
                 text = {
-                    Text(text = "이 등급을 선택하시겠습니까?")
+                    Text(text = "이 등급을 선택 하시겠습니까?")
                 },
                 confirmButton = {
                     Button(

@@ -44,9 +44,6 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var deviceDataRepository: DeviceDataRepository // DeviceDataRepository 주입
 
-
-    private var wakeLock: PowerManager.WakeLock? = null
-
     // onCreate 메서드
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,6 +82,7 @@ class MainActivity : ComponentActivity() {
                             ConnectScreen(
                                 navController,
                                 deviceDataRepository,
+                                bleManager
                             )
                         }
                     }

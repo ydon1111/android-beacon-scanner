@@ -242,6 +242,7 @@ class BleManager @Inject constructor(
     @SuppressLint("MissingPermission")
     fun stopBleScan() {
         bluetoothLeScanner.stopScan(scanCallback)
+        bleDataCount = 0 // BLE 데이터 카운트를 0으로 초기화
     }
 
     // Inject the _scanList from the ViewModel

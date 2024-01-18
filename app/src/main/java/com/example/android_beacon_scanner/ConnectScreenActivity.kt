@@ -2,9 +2,11 @@ package com.example.android_beacon_scanner
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,6 +21,9 @@ import kotlinx.coroutines.flow.firstOrNull
 
 class ConnectScreenActivity : ComponentActivity() {
 
+
+
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -32,6 +37,8 @@ class ConnectScreenActivity : ComponentActivity() {
                 // Use remember to hold the deviceData while it's being loaded
                 var deviceData by remember { mutableStateOf<DeviceRoomDataEntity?>(null) }
 
+               val bleManager = BleManager(applicationContext, deviceDataRepository)
+
                 // Load the deviceData asynchronously using a coroutine
                 LaunchedEffect(deviceDataRepository) {
                     val data = deviceDataRepository.observeLatestDeviceData("").firstOrNull()
@@ -39,7 +46,7 @@ class ConnectScreenActivity : ComponentActivity() {
                 }
 
                 // Set up the ConnectScreen with the NavHostController and deviceData
-                ConnectScreen(navController, deviceDataRepository)
+                ConnectScreen(navController, deviceDataRepository,bleManager)
             }
         }
     }
