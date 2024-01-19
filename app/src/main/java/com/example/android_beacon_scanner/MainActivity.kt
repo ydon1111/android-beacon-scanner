@@ -2,6 +2,7 @@ package com.example.android_beacon_scanner
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -44,6 +45,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var deviceDataRepository: DeviceDataRepository // DeviceDataRepository 주입
 
+    // 알림 권한 요청 코드
+    private val notificationPermissionRequestCode = 123
+
     // onCreate 메서드
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,7 +80,10 @@ class MainActivity : ComponentActivity() {
 
                     NavHost(navController = navController, startDestination = "ScanScreen") {
                         composable(route = "ScanScreen") {
-                            ScanScreen(navController, ScanViewModel(bleManager, deviceDataRepository))
+                            ScanScreen(
+                                navController,
+                                ScanViewModel(bleManager, deviceDataRepository)
+                            )
                         }
                         composable(route = "ConnectScreen") {
                             ConnectScreen(
@@ -113,6 +120,7 @@ class MainActivity : ComponentActivity() {
         // Wake Lock 해제
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private val permissionArray =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             arrayOf(
@@ -137,6 +145,20 @@ class MainActivity : ComponentActivity() {
                 Manifest.permission.POST_NOTIFICATIONS
             )
         }
+
+
+    // 알림 권한을 확인하는 함수
+    private fun isNotificationPermissionGranted(): Boolean {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        return notificationManager.areNotificationsEnabled()
+    }
+
+    // 알림 권한 요청 함수
+    private fun requestNotificationPermission() {
+        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        intent.putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+        startActivityForResult(intent, notificationPermissionRequestCode)
+    }
 
 
     private val requestPermissionLauncher = registerForActivityResult(

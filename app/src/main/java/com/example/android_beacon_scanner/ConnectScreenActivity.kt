@@ -21,8 +21,6 @@ import kotlinx.coroutines.flow.firstOrNull
 
 class ConnectScreenActivity : ComponentActivity() {
 
-
-
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

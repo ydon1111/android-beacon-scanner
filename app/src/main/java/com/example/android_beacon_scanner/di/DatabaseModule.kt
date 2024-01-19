@@ -49,6 +49,4 @@ object DatabaseModule {
     fun provideApplicationContext(@ApplicationContext context: Context): Context {
         return context
     }
-
-
 }

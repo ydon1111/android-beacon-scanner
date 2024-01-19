@@ -62,6 +62,8 @@ class BleManager @Inject constructor(
     object : ScanCallback() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
+
+
             val deviceName = result.device.name
             if (deviceName != null && deviceName.contains("M")) {
                 val manufacturerData = result.scanRecord?.manufacturerSpecificData
@@ -71,7 +73,11 @@ class BleManager @Inject constructor(
                     val manufacturerDataIntArray =
                         manufacturerDataValue?.map { it.toInt() }?.toIntArray()
 
+                    val packetSize = manufacturerDataValue?.size ?: 0
+                    Log.d("onScanResult", "Packet Size: $packetSize bytes")
+
                     Log.d("onScanResult", result.toString())
+
 
                     val temperature = manufacturerDataIntArray?.let {
                         if (it.size >= 2) {
@@ -81,7 +87,7 @@ class BleManager @Inject constructor(
                         }
                     }
 
-                    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
 
                     val timestampNano = result.timestampNanos
                     val formattedTimestamp =

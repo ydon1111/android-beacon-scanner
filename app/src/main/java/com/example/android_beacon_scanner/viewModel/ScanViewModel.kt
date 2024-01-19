@@ -25,6 +25,7 @@ class ScanViewModel(
     private val _scanList = MutableStateFlow(SnapshotStateList<DeviceRoomDataEntity>())
     val scanList: StateFlow<SnapshotStateList<DeviceRoomDataEntity>> = _scanList
 
+
     init {
         // Inject the scanList from the ViewModel into the BleManager
         bleManager.setScanList(_scanList)
@@ -43,6 +44,17 @@ class ScanViewModel(
                 bleManager.stopBleScan()
             }
             _isScanning.value = !_isScanning.value
+        }
+    }
+
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun stopScan(context: Context) {
+        viewModelScope.launch {
+            if (isScanning.value) {
+                bleManager.stopBleScan()
+            }
+            _isScanning.value = false
         }
     }
 }

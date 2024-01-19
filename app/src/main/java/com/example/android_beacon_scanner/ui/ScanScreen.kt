@@ -64,6 +64,8 @@ fun ScanScreen(
 
     val context = LocalContext.current
 
+
+
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -86,16 +88,16 @@ fun ScanButton(
         // todo: 권한 결과 처리
     }
 
-    // 앱이 실행될 때 자동으로 스캔 시작
-    LaunchedEffect(Unit) {
-        if (!isScanning) {
-            if (checkPermission(context)) {
-                viewModel.toggleScan(context)
-            } else {
-                launcher.launch(permissionArray)
-            }
-        }
-    }
+//    // 앱이 실행될 때 자동으로 스캔 시작
+//    LaunchedEffect(Unit) {
+//        if (!isScanning) {
+//            if (checkPermission(context)) {
+//                viewModel.toggleScan(context)
+//            } else {
+//                launcher.launch(permissionArray)
+//            }
+//        }
+//    }
 
     Button(
         modifier = Modifier
@@ -148,6 +150,8 @@ fun ScanList(
             ScanItem(navController, topic)
         }
     }
+
+
 
     // Check for devices that are no longer visible and remove them from scanList
     LaunchedEffect(visibleDevices.value) {
@@ -235,7 +239,7 @@ fun checkPermission(context: Context): Boolean {
             Manifest.permission.BLUETOOTH_SCAN,
             Manifest.permission.BLUETOOTH_CONNECT,
             Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            Manifest.permission.ACCESS_FINE_LOCATION,
         )
     } else {
         arrayOf(
@@ -264,7 +268,7 @@ private val permissionArray = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
         Manifest.permission.ACCESS_COARSE_LOCATION,
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.WRITE_EXTERNAL_STORAGE, // Add WRITE_EXTERNAL_STORAGE permission
-
+        Manifest.permission.POST_NOTIFICATIONS,
     )
 } else {
     arrayOf(
