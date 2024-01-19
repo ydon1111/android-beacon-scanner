@@ -34,6 +34,7 @@ import com.example.android_beacon_scanner.room.DeviceDataRepository
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -379,6 +380,7 @@ fun NrsChartItem(
 
     ) {
     val showDialog = remember { mutableStateOf(false) }
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -392,7 +394,7 @@ fun NrsChartItem(
                 showDialog.value = true
             },
             modifier = Modifier
-                .height(40.dp) // 버튼 높이를 조정합니다.
+                .height(screenHeight * 0.048f)
                 .fillMaxWidth(0.5f) // 버튼 너비도 조정합니다.
         ) {
             Text(
