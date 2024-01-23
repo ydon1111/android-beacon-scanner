@@ -173,6 +173,7 @@ fun ConnectScreen(
     // State variable to control the confirmation dialog
     var showCancelConfirmationDialog by remember { mutableStateOf(false) }
 
+
     Column(
         Modifier
             .fillMaxSize()

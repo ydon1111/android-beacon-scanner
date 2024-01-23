@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -65,14 +66,65 @@ fun ScanScreen(
     val context = LocalContext.current
 
 
+    // 추가: 다이얼로그 표시 여부를 저장하는 상태 변수
+    var showDialog by remember { mutableStateOf(false) }
+
+    // 추가: 다이얼로그 표시 함수
+    val onShowDialogClick: () -> Unit = {
+        showDialog = true
+    }
+
+    // 추가: 다이얼로그에서 확인을 눌렀을 때의 동작
+    val onConfirmDeleteClick: () -> Unit = {
+        viewModel.deleteAllDeviceData() // 데이터 삭제 함수 호출
+        showDialog = false // 다이얼로그 닫기
+    }
+
 
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
         ScanButton(context, viewModel, isScanning) // Pass isScanning as a parameter
+        DeleteDataButton(
+            onClick = onShowDialogClick // 다이얼로그 표시 함수 연결
+        )
         ScanList(navController, scanList)
+
+        // 추가: 다이얼로그 표시
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showDialog = false
+                },
+                title = {
+                    Text("데이터 삭제 확인")
+                },
+                text = {
+                    Text("저장된 데이터를 삭제하시겠습니까?")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            onConfirmDeleteClick() // 확인 버튼 클릭 시 삭제 동작 수행
+                        }
+                    ) {
+                        Text("확인")
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = {
+                            showDialog = false // 취소 버튼 클릭 시 다이얼로그 닫기
+                        }
+                    ) {
+                        Text("취소")
+                    }
+                }
+            )
+        }
     }
 }
+
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -152,7 +204,6 @@ fun ScanList(
     }
 
 
-
     // Check for devices that are no longer visible and remove them from scanList
     LaunchedEffect(visibleDevices.value) {
         val visibleDeviceNames = visibleDevices.value.map { it.deviceName }
@@ -229,6 +280,26 @@ fun ScanItem(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun DeleteDataButton(onClick: () -> Unit) {
+    Button(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(80.dp)
+            .padding(horizontal = 20.dp)
+            .padding(top = 20.dp),
+        shape = CutCornerShape(16.dp),
+        colors = ButtonDefaults.buttonColors(Color(0xFFD32F2F)), // 버튼 색상
+        onClick = onClick // 클릭 이벤트 처리
+    ) {
+        Text(
+            text = "저장된 데이터 삭제", // 버튼 텍스트
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

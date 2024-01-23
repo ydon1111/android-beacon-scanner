@@ -57,4 +57,11 @@ class ScanViewModel(
             _isScanning.value = false
         }
     }
+
+    fun deleteAllDeviceData() {
+        viewModelScope.launch {
+            deviceDataRepository.deleteAllDeviceData()
+            _scanList.value.clear() // 스캔 리스트 초기화
+        }
+    }
 }
