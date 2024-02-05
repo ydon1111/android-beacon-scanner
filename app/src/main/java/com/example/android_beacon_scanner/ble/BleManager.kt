@@ -30,6 +30,8 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 @Singleton
 class BleManager @Inject constructor(
@@ -122,6 +124,12 @@ class BleManager @Inject constructor(
                         } else {
                             0
                         }
+
+                        // Calculate the Euclidean norm (SVM)
+                        val svm = sqrt(valueX.toDouble().pow(2) + valueY.toDouble().pow(2) + valueZ.toDouble().pow(2))
+                        // Log the svm value
+                        Log.d("SVM", "SVM Value: $svm")
+
 
                         val scanItem = DeviceRoomDataEntity(
                             deviceName = deviceName,
