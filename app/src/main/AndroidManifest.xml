@@ -31,9 +31,15 @@
         android:protectionLevel="signature|privileged|vendorPrivileged|oem|verifier"
         tools:ignore="ReservedSystemPermission" />
 
+    <uses-sdk
+        android:minSdkVersion="21"
+        android:targetSdkVersion="33"
+        tools:overrideLibrary="androidx.core"
+        tools:ignore="GradleOverrides,OldTargetApi" />
+
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32"
+        android:maxSdkVersion="34"
         tools:ignore="ScopedStorage" />
 
     <application

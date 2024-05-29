@@ -14,7 +14,6 @@ import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.navigation.NavHostController
 import com.example.android_beacon_scanner.BleManager
-import com.example.android_beacon_scanner.ConnectScreenActivity
 import com.example.android_beacon_scanner.MainActivity
 import com.example.android_beacon_scanner.R
 import com.example.android_beacon_scanner.room.DeviceDataRepository
@@ -27,93 +26,70 @@ class ConnectScreenService : LifecycleService() {
     private val CHANNEL_ID = "ConnectScreenServiceChannel"
     private val NOTIFICATION_ID = 1
     private lateinit var deviceDataRepository: DeviceDataRepository
-
-    private lateinit var bleManager: BleManager // BleManager 객체 선언
-
-    // Declare a variable for the wake lock
+    private lateinit var bleManager: BleManager
     private var wakeLock: PowerManager.WakeLock? = null
 
-    private lateinit var navController: NavHostController
-
-    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate() {
         super.onCreate()
         deviceDataRepository = DeviceDataRepository.getInstance(applicationContext)
-        navController = NavHostController(applicationContext)
-
-        // Acquire the wake lock when the service is created
-        acquireWakeLock()
-
-        // Foreground Service with ongoing notification
-        val notification = createNotification(null)
-        startForeground(NOTIFICATION_ID, notification)
-
         bleManager = BleManager(applicationContext, deviceDataRepository)
+
+        acquireWakeLock()
+        startForeground(NOTIFICATION_ID, createNotification(null))
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
 
-        // Acquire a wake lock
         acquireWakeLock()
 
-        // Move the declaration of deviceData to a higher scope
         val deviceData = intent?.getParcelableExtra<DeviceRoomDataEntity>("deviceData")
-
-        // Foreground Service를 시작합니다.
         startForeground(NOTIFICATION_ID, createNotification(deviceData))
 
         return START_STICKY
     }
 
-
-    private fun stopForegroundService() {
-        val serviceIntent = Intent(this, ConnectScreenService::class.java)
-        stopService(serviceIntent)
-    }
-    @RequiresApi(Build.VERSION_CODES.S)
     override fun onDestroy() {
         super.onDestroy()
-        // Release the acquired wake lock when the service is destroyed
         releaseWakeLock()
-
-        // Stop the foreground service when the service is destroyed
         stopForeground(true)
     }
-    private fun createNotification(deviceData: DeviceRoomDataEntity?): Notification {
 
+    private fun createNotification(deviceData: DeviceRoomDataEntity?): Notification {
         val notificationChannelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             createNotificationChannel()
         } else {
             ""
         }
 
-        val connectScreenIntent = Intent(applicationContext, MainActivity::class.java)
-        connectScreenIntent.action = "android.intent.action.MAIN"
-        connectScreenIntent.addCategory("android.intent.category.LAUNCHER")
+        val connectScreenIntent = Intent(applicationContext, MainActivity::class.java).apply {
+            action = Intent.ACTION_MAIN
+            addCategory(Intent.CATEGORY_LAUNCHER)
+        }
 
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            PendingIntent.FLAG_MUTABLE // Android 12 이상에서는 FLAG_MUTABLE을 사용합니다.
+            PendingIntent.FLAG_MUTABLE
         } else {
             0
         }
-        // PendingIntent를 업데이트하고 FLAG_UPDATE_CURRENT 플래그를 사용합니다.
-        val pendingIntent = PendingIntent.getActivity(this, 0, connectScreenIntent, flags or PendingIntent.FLAG_UPDATE_CURRENT)
-
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, connectScreenIntent,
+            flags or PendingIntent.FLAG_UPDATE_CURRENT
+        )
 
         return NotificationCompat.Builder(this, notificationChannelId)
             .setContentTitle("서울아산병원 보조기앱")
             .setContentText("서울아산병원 보조기앱이 동작중 입니다")
             .setSmallIcon(R.drawable.baseline_local_hospital_24)
-            .setOngoing(false)  // This makes the notification ongoing
-            .setContentIntent(pendingIntent) // PendingIntent 설정
+            .setOngoing(true)
+            .setContentIntent(pendingIntent)
             .build()
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createNotificationChannel(): String {
-        val channelId = "ConnectScreenServiceChannel"
+        val channelId = CHANNEL_ID
         val channelName = "ConnectScreenService"
         val channel = NotificationChannel(
             channelId,
@@ -125,22 +101,18 @@ class ConnectScreenService : LifecycleService() {
         return channelId
     }
 
-    // Wake Lock을 사용하여 CPU를 활성 상태로 유지
     private fun acquireWakeLock() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
             "MyApp::MyWakeLockTag"
-        )
-
-        wakeLock?.let {
-            if (!it.isHeld) {
-                it.acquire(Long.MAX_VALUE)
+        ).apply {
+            if (!isHeld) {
+                acquire(Long.MAX_VALUE)
             }
         }
     }
 
-    // Wake Lock 해제
     private fun releaseWakeLock() {
         wakeLock?.let {
             if (it.isHeld) {
@@ -149,6 +121,3 @@ class ConnectScreenService : LifecycleService() {
         }
     }
 }
-
-
-

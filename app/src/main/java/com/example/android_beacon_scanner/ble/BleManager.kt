@@ -35,21 +35,17 @@ import kotlin.math.sqrt
 
 @Singleton
 class BleManager @Inject constructor(
-    private val context: Context, private val deviceDataRepository: DeviceDataRepository,
+    private val context: Context,
+    private val deviceDataRepository: DeviceDataRepository
 ) {
-    private val bluetoothManager =
-        context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+    private val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter = bluetoothManager.adapter
     private val bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
     private var connectedStateObserver: BleInterface? = null
-    var bleGatt: BluetoothGatt? = null
-
+    private var bleGatt: BluetoothGatt? = null
     private var bleDataCount = 0
-
-    private var isScanning = false // 스캔 상태를 나타내는 변수
-
+    private var isScanning = false // Indicates if scanning is in progress
     private var connectedDevice: DeviceRoomDataEntity? = null
-
     private var connectionRetries = 0
 
     fun setConnectedDevice(deviceData: DeviceRoomDataEntity) {
@@ -60,77 +56,38 @@ class BleManager @Inject constructor(
         return connectedDevice
     }
 
-    private val scanCallback: ScanCallback = @RequiresApi(Build.VERSION_CODES.O)
-    object : ScanCallback() {
+    private val scanCallback: ScanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
-
-
             val deviceName = result.device.name
             if (deviceName != null && deviceName.contains("M")) {
                 val manufacturerData = result.scanRecord?.manufacturerSpecificData
                 if (manufacturerData != null && manufacturerData.containsKey(16505)) {
-
                     val manufacturerDataValue = manufacturerData[16505]
-                    val manufacturerDataIntArray =
-                        manufacturerDataValue?.map { it.toInt() }?.toIntArray()
-
+                    val manufacturerDataIntArray = manufacturerDataValue?.map { it.toInt() }?.toIntArray()
                     val packetSize = manufacturerDataValue?.size ?: 0
                     Log.d("onScanResult", "Packet Size: $packetSize bytes")
-
                     Log.d("onScanResult", result.toString())
-
-
                     val temperature = manufacturerDataIntArray?.let {
-                        if (it.size >= 2) {
-                            it[it.size - 2] // Second-to-last number
-                        } else {
-                            null
-                        }
+                        if (it.size >= 2) it[it.size - 2] else null
                     }
-
                     val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
-
                     val timestampNano = result.timestampNanos
-                    val formattedTimestamp =
-                        dateFormat.format(Date(timestampNano / 1000000L))
-
+                    val formattedTimestamp = dateFormat.format(Date(timestampNano / 1000000L))
                     val currentDateAndTime = Date()
                     val formattedDate = dateFormat.format(currentDateAndTime)
-
                     val startIndex = 0
                     val step = 12
                     val count = 18
-
                     for (i in 0 until count) {
                         val indexX = startIndex + i * step
                         val indexY = (startIndex + 2) + i * step
                         val indexZ = (startIndex + 4) + i * step
-
-                        val valueX = if (indexX < (manufacturerDataIntArray?.size ?: 0)) {
-                            manufacturerDataIntArray?.get(indexX) ?: 0
-                        } else {
-                            0
-                        }
-
-                        val valueY = if (indexY < (manufacturerDataIntArray?.size ?: 0)) {
-                            manufacturerDataIntArray?.get(indexY) ?: 0
-                        } else {
-                            0
-                        }
-
-                        val valueZ = if (indexZ < (manufacturerDataIntArray?.size ?: 0)) {
-                            manufacturerDataIntArray?.get(indexZ) ?: 0
-                        } else {
-                            0
-                        }
-
-                        // Calculate the Euclidean norm (SVM)
+                        val valueX = manufacturerDataIntArray?.getOrNull(indexX) ?: 0
+                        val valueY = manufacturerDataIntArray?.getOrNull(indexY) ?: 0
+                        val valueZ = manufacturerDataIntArray?.getOrNull(indexZ) ?: 0
                         val svm = sqrt(valueX.toDouble().pow(2) + valueY.toDouble().pow(2) + valueZ.toDouble().pow(2))
-                        // Log the svm value
                         Log.d("SVM", "SVM Value: $svm")
-
-
                         val scanItem = DeviceRoomDataEntity(
                             deviceName = deviceName,
                             deviceAddress = result.device.address ?: "null",
@@ -142,13 +99,11 @@ class BleManager @Inject constructor(
                             valueX = valueX,
                             valueY = valueY,
                             valueZ = valueZ,
-                            rating = null,
+                            rating = null
                         )
-
                         MainScope().launch(Dispatchers.IO) {
                             deviceDataRepository.insertDeviceData(scanItem)
                         }
-
                         _scanList.value.add(scanItem)
                     }
                     bleDataCount++
@@ -157,40 +112,29 @@ class BleManager @Inject constructor(
         }
 
         override fun onScanFailed(errorCode: Int) {
-            println("onScanFailed  $errorCode")
+            Log.e("onScanFailed", "Scan failed with error code $errorCode")
         }
     }
 
     private val gattCallback = object : BluetoothGattCallback() {
         @SuppressLint("MissingPermission")
-        override fun onConnectionStateChange(
-            gatt: BluetoothGatt?, status: Int, newState: Int,
-        ) {
+        override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
             super.onConnectionStateChange(gatt, status, newState)
-
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                // Connection successful, reset connection retries
                 connectionRetries = 0
                 Log.d("BleManager", "Connected")
                 gatt?.discoverServices()
                 connectedStateObserver?.onConnectedStateObserve(true, "Connected")
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.d("BleManager", "Disconnected")
-
-                // Handle disconnection here
                 connectedStateObserver?.onConnectedStateObserve(false, "Disconnected")
                 bleDataCount = 0
-
-                // Retry connection (up to a certain number of retries)
                 if (connectionRetries < MAX_CONNECTION_RETRIES) {
-                    // Retry connecting after a delay
-                    val retryDelayMillis = 1000L // 1 second delay (adjust as needed)
                     Handler(Looper.getMainLooper()).postDelayed({
                         gatt?.connect()
                         connectionRetries++
-                    }, retryDelayMillis)
+                    }, RETRY_DELAY_MILLIS)
                 } else {
-                    // Handle max retry limit reached
                     Log.e("BleManager", "Max connection retries reached")
                 }
             }
@@ -199,27 +143,20 @@ class BleManager @Inject constructor(
         @SuppressLint("MissingPermission")
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             super.onServicesDiscovered(gatt, status)
-
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 MainScope().launch {
                     bleGatt = gatt
-                    Toast.makeText(
-                        context, "Connected to ${gatt?.device?.name}", Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(context, "Connected to ${gatt?.device?.name}", Toast.LENGTH_SHORT).show()
                     var sendText = "Services Discovered: GATT_SUCCESS\n"
-
-                    for (service in gatt?.services!!) {
-                        sendText += "- " + service.uuid.toString() + "\n"
-                        for (characteristics in service.characteristics) {
-                            sendText += "       " + characteristics.uuid.toString() + "\n"
-                            // Read characteristic data and store in the Room database
-                            gatt.readCharacteristic(characteristics)
+                    gatt?.services?.forEach { service ->
+                        sendText += "- ${service.uuid}\n"
+                        service.characteristics.forEach { characteristic ->
+                            sendText += "    ${characteristic.uuid}\n"
+                            gatt.readCharacteristic(characteristic)
                         }
                     }
                     sendText += "---"
-                    connectedStateObserver?.onConnectedStateObserve(
-                        true, sendText
-                    )
+                    connectedStateObserver?.onConnectedStateObserve(true, sendText)
                 }
             }
         }
@@ -228,35 +165,27 @@ class BleManager @Inject constructor(
     @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("MissingPermission")
     fun startBleScan() {
-        if (!isScanning) { // 스캔 중이 아닌 경우에만 시작
+        if (!isScanning) {
             _scanList.value.clear()
-
-            val scanSettings =
-                ScanSettings.Builder()
-                    .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                    .setLegacy(false)
-                    .build()
-
-
-            val filters = mutableListOf<ScanFilter>()
-            // 스캔 필터 생성
-            val scanFilter = ScanFilter.Builder().run {
-                // 16505 키를 가진 제조사 특정 데이터를 탐지하는 필터 설정
-                setManufacturerData(16505, byteArrayOf(), byteArrayOf())
-                build()
-            }
-            // 스캔 필터 추가
-            filters.add(scanFilter)
-
+            val scanSettings = ScanSettings.Builder()
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                .setLegacy(false)
+                .build()
+            val filters = listOf(
+                ScanFilter.Builder().setManufacturerData(16505, byteArrayOf(), byteArrayOf()).build()
+            )
             bluetoothLeScanner.startScan(filters, scanSettings, scanCallback)
-
+            isScanning = true
         }
     }
 
     @SuppressLint("MissingPermission")
     fun stopBleScan() {
-        bluetoothLeScanner.stopScan(scanCallback)
-        bleDataCount = 0 // BLE 데이터 카운트를 0으로 초기화
+        if (isScanning) {
+            bluetoothLeScanner.stopScan(scanCallback)
+            bleDataCount = 0
+            isScanning = false
+        }
     }
 
     // Inject the _scanList from the ViewModel
@@ -270,7 +199,6 @@ class BleManager @Inject constructor(
         connectedStateObserver = pConnectedStateObserver
     }
 
-    // RoomDB에 데이터를 저장하는 함수 추가
     @RequiresApi(Build.VERSION_CODES.O)
     fun saveDataToDeviceDataRepository(scanItem: DeviceRoomDataEntity) {
         MainScope().launch(Dispatchers.IO) {
@@ -284,23 +212,13 @@ class BleManager @Inject constructor(
         scanResultCallback = callback
     }
 
-    // Inside BleManager class
     @SuppressLint("MissingPermission")
     fun pairWithBeacon(device: BluetoothDevice) {
-        // Initiate a connection to the selected beacon
         bleGatt = device.connectGatt(context, false, gattCallback)
     }
 
     companion object {
-        // Define a constant for the maximum connection retries
         private const val MAX_CONNECTION_RETRIES = 3
+        private const val RETRY_DELAY_MILLIS = 1000L // 1 second delay
     }
 }
-
-
-
-
-
-
-
-

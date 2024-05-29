@@ -3,41 +3,24 @@ package com.example.android_beacon_scanner.ui
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -53,7 +36,6 @@ import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
 import com.example.android_beacon_scanner.ui.theme.ScanItemTypography
 import com.example.android_beacon_scanner.viewModel.ScanViewModel
 
-
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ScanScreen(
@@ -61,36 +43,28 @@ fun ScanScreen(
     viewModel: ScanViewModel,
 ) {
     val scanList by viewModel.scanList.collectAsState()
-    val isScanning by viewModel.isScanning.collectAsState() // Observe isScanning
+    val isScanning by viewModel.isScanning.collectAsState()
 
     val context = LocalContext.current
 
-
-    // 추가: 다이얼로그 표시 여부를 저장하는 상태 변수
     var showDialog by remember { mutableStateOf(false) }
 
-    // 추가: 다이얼로그 표시 함수
     val onShowDialogClick: () -> Unit = {
         showDialog = true
     }
 
-    // 추가: 다이얼로그에서 확인을 눌렀을 때의 동작
     val onConfirmDeleteClick: () -> Unit = {
-        viewModel.deleteAllDeviceData() // 데이터 삭제 함수 호출
-        showDialog = false // 다이얼로그 닫기
+        viewModel.deleteAllDeviceData()
+        showDialog = false
     }
-
 
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        ScanButton(context, viewModel, isScanning) // Pass isScanning as a parameter
-        DeleteDataButton(
-            onClick = onShowDialogClick // 다이얼로그 표시 함수 연결
-        )
+        ScanButton(context, viewModel, isScanning)
+        DeleteDataButton(onClick = onShowDialogClick)
         ScanList(navController, scanList)
 
-        // 추가: 다이얼로그 표시
         if (showDialog) {
             AlertDialog(
                 onDismissRequest = {
@@ -104,18 +78,14 @@ fun ScanScreen(
                 },
                 confirmButton = {
                     Button(
-                        onClick = {
-                            onConfirmDeleteClick() // 확인 버튼 클릭 시 삭제 동작 수행
-                        }
+                        onClick = onConfirmDeleteClick
                     ) {
                         Text("확인")
                     }
                 },
                 dismissButton = {
                     Button(
-                        onClick = {
-                            showDialog = false // 취소 버튼 클릭 시 다이얼로그 닫기
-                        }
+                        onClick = { showDialog = false }
                     ) {
                         Text("취소")
                     }
@@ -125,31 +95,34 @@ fun ScanScreen(
     }
 }
 
-
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-@SuppressLint("MissingPermission", "StateFlowValueCalledInComposition")
+@SuppressLint("MissingPermission")
 fun ScanButton(
     context: Context,
     viewModel: ScanViewModel,
-    isScanning: Boolean, // Receive isScanning as a parameter
+    isScanning: Boolean,
 ) {
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) {
-        // todo: 권한 결과 처리
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        if (allGranted) {
+            viewModel.toggleScan(context)
+        } else {
+            Toast.makeText(context, "All permissions are required", Toast.LENGTH_SHORT).show()
+        }
     }
 
-//    // 앱이 실행될 때 자동으로 스캔 시작
-//    LaunchedEffect(Unit) {
-//        if (!isScanning) {
-//            if (checkPermission(context)) {
-//                viewModel.toggleScan(context)
-//            } else {
-//                launcher.launch(permissionArray)
-//            }
-//        }
-//    }
+    LaunchedEffect(Unit) {
+        if (!isScanning) {
+            if (checkPermission(context)) {
+                viewModel.toggleScan(context)
+            } else {
+                launcher.launch(permissionArray)
+            }
+        }
+    }
 
     Button(
         modifier = Modifier
@@ -190,8 +163,7 @@ fun ScanList(
     scanList: SnapshotStateList<DeviceRoomDataEntity>,
 ) {
     val uniqueDeviceNames = scanList.distinctBy { it.deviceName }
-    val visibleDevices =
-        rememberUpdatedState(uniqueDeviceNames) // Remember the list of visible devices
+    val visibleDevices = rememberUpdatedState(uniqueDeviceNames)
 
     LazyColumn(
         modifier = Modifier
@@ -203,14 +175,11 @@ fun ScanList(
         }
     }
 
-
-    // Check for devices that are no longer visible and remove them from scanList
     LaunchedEffect(visibleDevices.value) {
         val visibleDeviceNames = visibleDevices.value.map { it.deviceName }
         val removedDevices = scanList.filterNot { it.deviceName in visibleDeviceNames }
         scanList.removeAll(removedDevices)
     }
-
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -222,7 +191,7 @@ fun ScanItem(
     deviceData: DeviceRoomDataEntity,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val deviceDataState = rememberUpdatedState(deviceData) // Remember the deviceData
+    val deviceDataState = rememberUpdatedState(deviceData)
 
     Card(
         colors = CardDefaults.cardColors(
@@ -247,13 +216,13 @@ fun ScanItem(
                 Text(
                     text = "서울아산병원 보조기 (${deviceData.deviceName})",
                     style = ScanItemTypography.bodySmall.copy(
-                        fontSize = 20.sp // 큰 글꼴 크기로 조절
+                        fontSize = 20.sp
                     )
                 )
                 if (expanded) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Temperature\n>> ${deviceData.temperature ?: "N/A"}", // 온도가 null인 경우 "N/A"로 표시
+                        text = "Temperature\n>> ${deviceData.temperature ?: "N/A"}",
                         style = ScanItemTypography.bodySmall
                     )
                     Spacer(modifier = Modifier.height(2.dp))
@@ -263,7 +232,7 @@ fun ScanItem(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "rating\n>> ${deviceData.rating}",
+                        text = "Rating\n>> ${deviceData.rating}",
                         style = ScanItemTypography.bodySmall
                     )
                 }
@@ -292,61 +261,46 @@ fun DeleteDataButton(onClick: () -> Unit) {
             .padding(horizontal = 20.dp)
             .padding(top = 20.dp),
         shape = CutCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(Color(0xFFD32F2F)), // 버튼 색상
-        onClick = onClick // 클릭 이벤트 처리
+        colors = ButtonDefaults.buttonColors(Color(0xFFD32F2F)),
+        onClick = onClick
     ) {
         Text(
-            text = "저장된 데이터 삭제", // 버튼 텍스트
+            text = "저장된 데이터 삭제",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold
         )
     }
 }
 
-
 fun checkPermission(context: Context): Boolean {
     val permissionArray = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         arrayOf(
             Manifest.permission.BLUETOOTH_SCAN,
             Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.POST_NOTIFICATIONS,
         )
     } else {
         arrayOf(
-            Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION
         )
     }
 
-    if (Build.VERSION.SDK_INT >= 31) {
-        // 블루투스와 카메라 권한이 허용되었는지 체크
-        return permissionArray.all {
-            ContextCompat.checkSelfPermission(
-                context,
-                it
-            ) == PackageManager.PERMISSION_GRANTED
-        }
+    return permissionArray.all {
+        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
     }
-    return true
 }
 
 private val permissionArray = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
     arrayOf(
         Manifest.permission.BLUETOOTH_SCAN,
         Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.BLUETOOTH_ADVERTISE, // Add Bluetooth Advertise permission
-        Manifest.permission.ACCESS_COARSE_LOCATION,
+        Manifest.permission.BLUETOOTH_ADVERTISE,
         Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.WRITE_EXTERNAL_STORAGE, // Add WRITE_EXTERNAL_STORAGE permission
         Manifest.permission.POST_NOTIFICATIONS,
     )
 } else {
     arrayOf(
-        Manifest.permission.ACCESS_COARSE_LOCATION,
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.WRITE_EXTERNAL_STORAGE // Add WRITE_EXTERNAL_STORAGE permission
+        Manifest.permission.ACCESS_FINE_LOCATION
     )
 }
-
-

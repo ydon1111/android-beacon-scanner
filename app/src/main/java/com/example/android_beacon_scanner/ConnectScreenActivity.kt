@@ -35,7 +35,7 @@ class ConnectScreenActivity : ComponentActivity() {
                 // Use remember to hold the deviceData while it's being loaded
                 var deviceData by remember { mutableStateOf<DeviceRoomDataEntity?>(null) }
 
-               val bleManager = BleManager(applicationContext, deviceDataRepository)
+                val bleManager = BleManager(applicationContext, deviceDataRepository)
 
                 // Load the deviceData asynchronously using a coroutine
                 LaunchedEffect(deviceDataRepository) {
