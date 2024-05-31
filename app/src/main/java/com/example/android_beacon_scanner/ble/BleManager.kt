@@ -21,10 +21,16 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.core.util.containsKey
 import com.example.android_beacon_scanner.room.DeviceDataRepository
 import com.example.android_beacon_scanner.room.DeviceRoomDataEntity
+import com.example.android_beacon_scanner.service.ApiService
+import com.example.android_beacon_scanner.service.BeaconDataRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import retrofit2.Call
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -32,6 +38,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.pow
 import kotlin.math.sqrt
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 
 @Singleton
 class BleManager @Inject constructor(
@@ -47,6 +55,38 @@ class BleManager @Inject constructor(
     private var isScanning = false // Indicates if scanning is in progress
     private var connectedDevice: DeviceRoomDataEntity? = null
     private var connectionRetries = 0
+    private lateinit var _scanList: MutableStateFlow<SnapshotStateList<DeviceRoomDataEntity>>
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val scanInterval: Long = 30000L // 30 seconds
+
+    private val logging = HttpLoggingInterceptor().apply {
+        setLevel(HttpLoggingInterceptor.Level.BODY)
+    }
+
+    private val httpClient = OkHttpClient.Builder()
+        .addInterceptor(logging)
+        .build()
+
+    private val retrofit = Retrofit.Builder()
+        .baseUrl("http://121.184.192.5:8081/") // Ensure this is correct
+        .addConverterFactory(GsonConverterFactory.create())
+        .client(httpClient)
+        .build()
+
+    private val apiService = retrofit.create(ApiService::class.java)
+
+    private val scanRunnable = object : Runnable {
+        @RequiresApi(Build.VERSION_CODES.O)
+        override fun run() {
+            if (!isScanning) {
+                startBleScan()
+            } else {
+                stopBleScan()
+            }
+            handler.postDelayed(this, scanInterval)
+        }
+    }
 
     fun setConnectedDevice(deviceData: DeviceRoomDataEntity) {
         connectedDevice = deviceData
@@ -56,7 +96,7 @@ class BleManager @Inject constructor(
         return connectedDevice
     }
 
-    private val scanCallback: ScanCallback = object : ScanCallback() {
+    private val scanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val deviceName = result.device.name
@@ -105,6 +145,11 @@ class BleManager @Inject constructor(
                             deviceDataRepository.insertDeviceData(scanItem)
                         }
                         _scanList.value.add(scanItem)
+
+                        // Log the data being sent
+                        Log.d("BleManager", "Sending data to server: $scanItem")
+                        // Send data to the server
+                        sendDataToServer(scanItem)
                     }
                     bleDataCount++
                 }
@@ -114,6 +159,41 @@ class BleManager @Inject constructor(
         override fun onScanFailed(errorCode: Int) {
             Log.e("onScanFailed", "Scan failed with error code $errorCode")
         }
+    }
+
+    private fun sendDataToServer(scanItem: DeviceRoomDataEntity) {
+        val beaconDataRequest = scanItem.bleDataCount?.let {
+            BeaconDataRequest(
+                deviceName = scanItem.deviceName,
+                deviceAddress = scanItem.deviceAddress,
+                manufacturerData = scanItem.manufacturerData,
+                temperature = scanItem.temperature,
+                bleDataCount = it,
+                currentDateAndTime = scanItem.currentDateAndTime,
+                timestampNanos = scanItem.timestampNanos,
+                valueX = scanItem.valueX,
+                valueY = scanItem.valueY,
+                valueZ = scanItem.valueZ,
+                rating = scanItem.rating
+            )
+        }
+
+        Log.d("BleManager", "Prepared BeaconDataRequest: $beaconDataRequest")
+
+        val call = beaconDataRequest?.let { apiService.sendBeaconData(it) }
+        call?.enqueue(object : retrofit2.Callback<Void> {
+            override fun onResponse(call: Call<Void>, response: Response<Void>) {
+                if (response.isSuccessful) {
+                    Log.d("BleManager", "Data sent successfully: ${response.body()}")
+                } else {
+                    Log.e("BleManager", "Failed to send data: ${response.errorBody()?.string()}")
+                }
+            }
+
+            override fun onFailure(call: Call<Void>, t: Throwable) {
+                Log.e("BleManager", "Error sending data", t)
+            }
+        })
     }
 
     private val gattCallback = object : BluetoothGattCallback() {
@@ -188,8 +268,13 @@ class BleManager @Inject constructor(
         }
     }
 
-    // Inject the _scanList from the ViewModel
-    private lateinit var _scanList: MutableStateFlow<SnapshotStateList<DeviceRoomDataEntity>>
+    fun startPeriodicBleScan() {
+        handler.post(scanRunnable)
+    }
+
+    fun stopPeriodicBleScan() {
+        handler.removeCallbacks(scanRunnable)
+    }
 
     fun setScanList(scanList: MutableStateFlow<SnapshotStateList<DeviceRoomDataEntity>>) {
         _scanList = scanList
