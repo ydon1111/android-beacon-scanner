@@ -36,8 +36,6 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.math.pow
-import kotlin.math.sqrt
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 
@@ -56,11 +54,11 @@ class BleManager @Inject constructor(
     private var connectedDevice: DeviceRoomDataEntity? = null
     private var connectionRetries = 0
     private lateinit var _scanList: MutableStateFlow<SnapshotStateList<DeviceRoomDataEntity>>
-    private val collectedData = mutableListOf<DeviceRoomDataEntity>()
+    private val collectedData = mutableListOf<DeviceRoomDataEntity>() // List to collect data in memory
+    private val maxDataSize = 180 // Maximum number of items before sending to the server
 
     private val handler = Handler(Looper.getMainLooper())
     private val scanInterval: Long = 30000L // 30 seconds
-    private val uploadInterval: Long = 600000L // 10 minutes   // 3600000L 1 hour
 
     private val logging = HttpLoggingInterceptor().apply {
         setLevel(HttpLoggingInterceptor.Level.BODY)
@@ -87,13 +85,6 @@ class BleManager @Inject constructor(
                 stopBleScan()
             }
             handler.postDelayed(this, scanInterval)
-        }
-    }
-
-    private val uploadRunnable = object : Runnable {
-        override fun run() {
-            sendDataToServer()
-            handler.postDelayed(this, uploadInterval)
         }
     }
 
@@ -135,8 +126,6 @@ class BleManager @Inject constructor(
                         val valueX = manufacturerDataIntArray?.getOrNull(indexX) ?: 0
                         val valueY = manufacturerDataIntArray?.getOrNull(indexY) ?: 0
                         val valueZ = manufacturerDataIntArray?.getOrNull(indexZ) ?: 0
-                        val svm = sqrt(valueX.toDouble().pow(2) + valueY.toDouble().pow(2) + valueZ.toDouble().pow(2))
-                        Log.d("SVM", "SVM Value: $svm")
                         val scanItem = DeviceRoomDataEntity(
                             deviceName = deviceName,
                             deviceAddress = result.device.address ?: "null",
@@ -150,11 +139,19 @@ class BleManager @Inject constructor(
                             valueZ = valueZ,
                             rating = null
                         )
-                        MainScope().launch(Dispatchers.IO) {
-                            deviceDataRepository.insertDeviceData(scanItem)
-                        }
                         _scanList.value.add(scanItem)
+
+                        // Add to collected data
                         collectedData.add(scanItem)
+
+                        // Save to local database in real-time
+                        saveDataToDeviceDataRepository(scanItem)
+
+                        // Check if collected data has reached the maximum size
+                        if (collectedData.size >= maxDataSize) {
+                            Log.d("BleManager", "Maximum data size reached. Uploading data to server.")
+                            uploadDataToServer()
+                        }
                     }
                     bleDataCount++
                 }
@@ -166,45 +163,104 @@ class BleManager @Inject constructor(
         }
     }
 
-    private fun sendDataToServer() {
+    private fun sendDataToServer(dataToSend: List<DeviceRoomDataEntity>) {
+        val beaconDataRequests = dataToSend.map { scanItem ->
+            scanItem.bleDataCount?.let {
+                BeaconDataRequest(
+                    deviceName = scanItem.deviceName,
+                    deviceAddress = scanItem.deviceAddress,
+                    // Removed manufacturerData from the request
+                    temperature = scanItem.temperature,
+                    bleDataCount = it,
+                    currentDateAndTime = scanItem.currentDateAndTime,
+                    timestampNanos = scanItem.timestampNanos,
+                    valueX = scanItem.valueX,
+                    valueY = scanItem.valueY,
+                    valueZ = scanItem.valueZ,
+                    rating = scanItem.rating
+                )
+            }
+        }.filterNotNull()
+
+        Log.d("BleManager", "Prepared BeaconDataRequest List: $beaconDataRequests")
+
+        val call = apiService.sendBeaconDataList(beaconDataRequests)
+        call.enqueue(object : retrofit2.Callback<Void> {
+            override fun onResponse(call: Call<Void>, response: Response<Void>) {
+                if (response.isSuccessful) {
+                    Log.d("BleManager", "Data sent successfully: ${response.body()}")
+                } else {
+                    Log.e("BleManager", "Failed to send data: ${response.errorBody()?.string()}")
+                }
+            }
+
+            override fun onFailure(call: Call<Void>, t: Throwable) {
+                Log.e("BleManager", "Error sending data", t)
+            }
+        })
+    }
+
+    private fun uploadDataToServer() {
         if (collectedData.isNotEmpty()) {
             val dataToSend = collectedData.toList() // Create a copy of the list to avoid concurrency issues
             collectedData.clear() // Clear the original list for new data
-            dataToSend.forEach { scanItem ->
-                val beaconDataRequest = scanItem.bleDataCount?.let {
-                    BeaconDataRequest(
-                        deviceName = scanItem.deviceName,
-                        deviceAddress = scanItem.deviceAddress,
-                        manufacturerData = scanItem.manufacturerData,
-                        temperature = scanItem.temperature,
-                        bleDataCount = it,
-                        currentDateAndTime = scanItem.currentDateAndTime,
-                        timestampNanos = scanItem.timestampNanos,
-                        valueX = scanItem.valueX,
-                        valueY = scanItem.valueY,
-                        valueZ = scanItem.valueZ,
-                        rating = scanItem.rating
-                    )
-                }
-
-                Log.d("BleManager", "Prepared BeaconDataRequest: $beaconDataRequest")
-
-                val call = beaconDataRequest?.let { apiService.sendBeaconData(it) }
-                call?.enqueue(object : retrofit2.Callback<Void> {
-                    override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                        if (response.isSuccessful) {
-                            Log.d("BleManager", "Data sent successfully: ${response.body()}")
-                        } else {
-                            Log.e("BleManager", "Failed to send data: ${response.errorBody()?.string()}")
-                        }
-                    }
-
-                    override fun onFailure(call: Call<Void>, t: Throwable) {
-                        Log.e("BleManager", "Error sending data", t)
-                    }
-                })
-            }
+            Log.d("BleManager", "Sending data to server: ${dataToSend.size} items")
+            sendDataToServer(dataToSend)
+        } else {
+            Log.d("BleManager", "No data to send to the server")
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    @SuppressLint("MissingPermission")
+    fun startBleScan() {
+        if (!isScanning) {
+            _scanList.value.clear()
+            val scanSettings = ScanSettings.Builder()
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                .setLegacy(false)
+                .build()
+            val filters = listOf(
+                ScanFilter.Builder().setManufacturerData(16505, byteArrayOf(), byteArrayOf()).build()
+            )
+            bluetoothLeScanner.startScan(filters, scanSettings, scanCallback)
+            isScanning = true
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun stopBleScan() {
+        if (isScanning) {
+            bluetoothLeScanner.stopScan(scanCallback)
+            bleDataCount = 0
+            isScanning = false
+        }
+    }
+
+    fun setScanList(scanList: MutableStateFlow<SnapshotStateList<DeviceRoomDataEntity>>) {
+        _scanList = scanList
+    }
+
+    fun onConnectedStateObserve(pConnectedStateObserver: BleInterface) {
+        connectedStateObserver = pConnectedStateObserver
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun saveDataToDeviceDataRepository(scanItem: DeviceRoomDataEntity) {
+        MainScope().launch(Dispatchers.IO) {
+            deviceDataRepository.insertDeviceData(scanItem)
+        }
+    }
+
+    private var scanResultCallback: ((ScanResult) -> Unit)? = null
+
+    fun setScanResultCallback(callback: (ScanResult) -> Unit) {
+        scanResultCallback = callback
+    }
+
+    @SuppressLint("MissingPermission")
+    fun pairWithBeacon(device: BluetoothDevice) {
+        bleGatt = device.connectGatt(context, false, gattCallback)
     }
 
     private val gattCallback = object : BluetoothGattCallback() {
@@ -212,7 +268,6 @@ class BleManager @Inject constructor(
         override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
             super.onConnectionStateChange(gatt, status, newState)
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                connectionRetries = 0
                 Log.d("BleManager", "Connected")
                 gatt?.discoverServices()
                 connectedStateObserver?.onConnectedStateObserve(true, "Connected")
@@ -251,68 +306,6 @@ class BleManager @Inject constructor(
                 }
             }
         }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    @SuppressLint("MissingPermission")
-    fun startBleScan() {
-        if (!isScanning) {
-            _scanList.value.clear()
-            val scanSettings = ScanSettings.Builder()
-                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                .setLegacy(false)
-                .build()
-            val filters = listOf(
-                ScanFilter.Builder().setManufacturerData(16505, byteArrayOf(), byteArrayOf()).build()
-            )
-            bluetoothLeScanner.startScan(filters, scanSettings, scanCallback)
-            isScanning = true
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    fun stopBleScan() {
-        if (isScanning) {
-            bluetoothLeScanner.stopScan(scanCallback)
-            bleDataCount = 0
-            isScanning = false
-        }
-    }
-
-    fun startPeriodicBleScan() {
-        handler.post(scanRunnable)
-        handler.post(uploadRunnable)
-    }
-
-    fun stopPeriodicBleScan() {
-        handler.removeCallbacks(scanRunnable)
-        handler.removeCallbacks(uploadRunnable)
-    }
-
-    fun setScanList(scanList: MutableStateFlow<SnapshotStateList<DeviceRoomDataEntity>>) {
-        _scanList = scanList
-    }
-
-    fun onConnectedStateObserve(pConnectedStateObserver: BleInterface) {
-        connectedStateObserver = pConnectedStateObserver
-    }
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun saveDataToDeviceDataRepository(scanItem: DeviceRoomDataEntity) {
-        MainScope().launch(Dispatchers.IO) {
-            deviceDataRepository.insertDeviceData(scanItem)
-        }
-    }
-
-    private var scanResultCallback: ((ScanResult) -> Unit)? = null
-
-    fun setScanResultCallback(callback: (ScanResult) -> Unit) {
-        scanResultCallback = callback
-    }
-
-    @SuppressLint("MissingPermission")
-    fun pairWithBeacon(device: BluetoothDevice) {
-        bleGatt = device.connectGatt(context, false, gattCallback)
     }
 
     companion object {

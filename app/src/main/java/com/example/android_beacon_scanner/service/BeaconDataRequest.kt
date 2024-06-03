@@ -3,7 +3,6 @@ package com.example.android_beacon_scanner.service
 data class BeaconDataRequest(
     val deviceName: String?,
     val deviceAddress: String?,
-    val manufacturerData: ByteArray?,
     val temperature: Int?,
     val bleDataCount: Int,
     val currentDateAndTime: String?,

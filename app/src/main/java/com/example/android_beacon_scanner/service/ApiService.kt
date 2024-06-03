@@ -5,6 +5,6 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 interface ApiService {
-    @POST("beacon-data/upload")
-    fun sendBeaconData(@Body beaconDataRequest: BeaconDataRequest): Call<Void>
+    @POST("/beacon-data/upload")
+    fun sendBeaconDataList(@Body beaconDataRequests: List<BeaconDataRequest>): Call<Void>
 }
