@@ -56,9 +56,11 @@ class BleManager @Inject constructor(
     private var connectedDevice: DeviceRoomDataEntity? = null
     private var connectionRetries = 0
     private lateinit var _scanList: MutableStateFlow<SnapshotStateList<DeviceRoomDataEntity>>
+    private val collectedData = mutableListOf<DeviceRoomDataEntity>()
 
     private val handler = Handler(Looper.getMainLooper())
     private val scanInterval: Long = 30000L // 30 seconds
+    private val uploadInterval: Long = 600000L // 10 minutes   // 3600000L 1 hour
 
     private val logging = HttpLoggingInterceptor().apply {
         setLevel(HttpLoggingInterceptor.Level.BODY)
@@ -85,6 +87,13 @@ class BleManager @Inject constructor(
                 stopBleScan()
             }
             handler.postDelayed(this, scanInterval)
+        }
+    }
+
+    private val uploadRunnable = object : Runnable {
+        override fun run() {
+            sendDataToServer()
+            handler.postDelayed(this, uploadInterval)
         }
     }
 
@@ -145,11 +154,7 @@ class BleManager @Inject constructor(
                             deviceDataRepository.insertDeviceData(scanItem)
                         }
                         _scanList.value.add(scanItem)
-
-                        // Log the data being sent
-                        Log.d("BleManager", "Sending data to server: $scanItem")
-                        // Send data to the server
-                        sendDataToServer(scanItem)
+                        collectedData.add(scanItem)
                     }
                     bleDataCount++
                 }
@@ -161,39 +166,45 @@ class BleManager @Inject constructor(
         }
     }
 
-    private fun sendDataToServer(scanItem: DeviceRoomDataEntity) {
-        val beaconDataRequest = scanItem.bleDataCount?.let {
-            BeaconDataRequest(
-                deviceName = scanItem.deviceName,
-                deviceAddress = scanItem.deviceAddress,
-                manufacturerData = scanItem.manufacturerData,
-                temperature = scanItem.temperature,
-                bleDataCount = it,
-                currentDateAndTime = scanItem.currentDateAndTime,
-                timestampNanos = scanItem.timestampNanos,
-                valueX = scanItem.valueX,
-                valueY = scanItem.valueY,
-                valueZ = scanItem.valueZ,
-                rating = scanItem.rating
-            )
-        }
-
-        Log.d("BleManager", "Prepared BeaconDataRequest: $beaconDataRequest")
-
-        val call = beaconDataRequest?.let { apiService.sendBeaconData(it) }
-        call?.enqueue(object : retrofit2.Callback<Void> {
-            override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                if (response.isSuccessful) {
-                    Log.d("BleManager", "Data sent successfully: ${response.body()}")
-                } else {
-                    Log.e("BleManager", "Failed to send data: ${response.errorBody()?.string()}")
+    private fun sendDataToServer() {
+        if (collectedData.isNotEmpty()) {
+            val dataToSend = collectedData.toList() // Create a copy of the list to avoid concurrency issues
+            collectedData.clear() // Clear the original list for new data
+            dataToSend.forEach { scanItem ->
+                val beaconDataRequest = scanItem.bleDataCount?.let {
+                    BeaconDataRequest(
+                        deviceName = scanItem.deviceName,
+                        deviceAddress = scanItem.deviceAddress,
+                        manufacturerData = scanItem.manufacturerData,
+                        temperature = scanItem.temperature,
+                        bleDataCount = it,
+                        currentDateAndTime = scanItem.currentDateAndTime,
+                        timestampNanos = scanItem.timestampNanos,
+                        valueX = scanItem.valueX,
+                        valueY = scanItem.valueY,
+                        valueZ = scanItem.valueZ,
+                        rating = scanItem.rating
+                    )
                 }
-            }
 
-            override fun onFailure(call: Call<Void>, t: Throwable) {
-                Log.e("BleManager", "Error sending data", t)
+                Log.d("BleManager", "Prepared BeaconDataRequest: $beaconDataRequest")
+
+                val call = beaconDataRequest?.let { apiService.sendBeaconData(it) }
+                call?.enqueue(object : retrofit2.Callback<Void> {
+                    override fun onResponse(call: Call<Void>, response: Response<Void>) {
+                        if (response.isSuccessful) {
+                            Log.d("BleManager", "Data sent successfully: ${response.body()}")
+                        } else {
+                            Log.e("BleManager", "Failed to send data: ${response.errorBody()?.string()}")
+                        }
+                    }
+
+                    override fun onFailure(call: Call<Void>, t: Throwable) {
+                        Log.e("BleManager", "Error sending data", t)
+                    }
+                })
             }
-        })
+        }
     }
 
     private val gattCallback = object : BluetoothGattCallback() {
@@ -270,10 +281,12 @@ class BleManager @Inject constructor(
 
     fun startPeriodicBleScan() {
         handler.post(scanRunnable)
+        handler.post(uploadRunnable)
     }
 
     fun stopPeriodicBleScan() {
         handler.removeCallbacks(scanRunnable)
+        handler.removeCallbacks(uploadRunnable)
     }
 
     fun setScanList(scanList: MutableStateFlow<SnapshotStateList<DeviceRoomDataEntity>>) {
