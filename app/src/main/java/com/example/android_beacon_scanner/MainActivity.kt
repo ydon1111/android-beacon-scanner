@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
             startService(serviceIntent)
         }
 
-        if (!isAppWhitelisted()) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isAppWhitelisted()) {
             requestAppWhitelisting()
         }
 
@@ -99,7 +99,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private val permissionArray =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             arrayOf(
@@ -110,7 +109,9 @@ class MainActivity : ComponentActivity() {
             )
         } else {
             arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.BLUETOOTH,
+                Manifest.permission.BLUETOOTH_ADMIN
             )
         }
 
@@ -126,7 +127,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestLegacyPermissions() {
-        requestPermissionLauncher.launch(permissionArray)
+        if (permissionArray.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }) {
+            Toast.makeText(this, "All permissions granted", Toast.LENGTH_SHORT).show()
+        } else {
+            requestPermissionLauncher.launch(permissionArray)
+        }
     }
 
     private fun isAppWhitelisted(): Boolean {
